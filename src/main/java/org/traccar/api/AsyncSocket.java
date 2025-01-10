@@ -22,11 +22,13 @@ import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.traccar.helper.LogAction;
+import org.traccar.helper.WebHelper;
 import org.traccar.helper.model.PositionUtil;
 import org.traccar.model.Device;
 import org.traccar.model.Event;
 import org.traccar.model.LogRecord;
 import org.traccar.model.Position;
+import org.traccar.model.UserLogs;
 import org.traccar.session.ConnectionManager;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
@@ -78,6 +80,11 @@ public class AsyncSocket extends WebSocketAdapter implements ConnectionManager.U
             // Loglama metoduna uzak adresi geç
             LogAction.logSocketLogin(userId, remoteAddress);
 
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+
+            userlogs.saveToDatabase(userId, "Login Socket - " + remoteAddress);
+ 
         } catch (StorageException e) {
             throw new RuntimeException(e);
         }

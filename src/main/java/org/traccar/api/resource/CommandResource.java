@@ -32,6 +32,7 @@ import org.traccar.model.Position;
 import org.traccar.model.QueuedCommand;
 import org.traccar.model.Typed;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.model.UserRestrictions;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Columns;
@@ -161,6 +162,11 @@ public class CommandResource extends ExtendedObjectResource<Command> {
         //loggeri buraya taşı bu formatta, IP ile birlikte loglama
         LOGGER.info("Command sent successfully: UserId={}, Type={}, Description={}, Attributes={}, DeviceId={}, UserIp={}",
         getUserId(), entity.getType(), entity.getDescription(), entity.getAttributes(), entity.getDeviceId(), getUserIp());
+
+       // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "Command Send:" + entity.getType() + " Desc: " +  entity.getDescription() + " Attributes: " + entity.getAttributes() + " DeviceId: " + entity.getDeviceId() + " IP: " + getUserIp());
+
         return Response.ok(entity).build();
     }
 

@@ -26,11 +26,13 @@ import org.traccar.config.Config;
 import org.traccar.config.Keys;
 import org.traccar.database.MediaManager;
 import org.traccar.helper.LogAction;
+import org.traccar.helper.WebHelper;
 import org.traccar.model.Device;
 import org.traccar.model.DeviceAccumulators;
 import org.traccar.model.Permission;
 import org.traccar.model.Position;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.session.ConnectionManager;
 import org.traccar.session.cache.CacheManager;
 import org.traccar.storage.StorageException;
@@ -175,6 +177,11 @@ public class DeviceResource extends BaseObjectResource<Device> {
         }
 
         LogAction.resetAccumulators(getUserId(), entity.getDeviceId());
+        
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+            userlogs.saveToDatabase(getUserId(), "ResetAccumulators Device:" + entity.getDeviceId());
+        
         return Response.noContent().build();
     }
 
@@ -268,6 +275,11 @@ public class DeviceResource extends BaseObjectResource<Device> {
           //takipon Link Paylaş işlemini günlüklere logla
           LOGGER.info("User: {}, Action: Shared Link Created, Description:{}, DeviceId:{}",
                 getUserId(), shareEmail, device.getName());
+
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+            userlogs.saveToDatabase(getUserId(), "Shared Link Created: " +  shareEmail + " Device: " + device.getName() + "Expiration" + share.getExpirationTime());
+            
         return tokenManager.generateToken(share.getId(), expiration);
     }
 

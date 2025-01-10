@@ -11,6 +11,7 @@ import org.traccar.database.StatisticsManager;
 import org.traccar.model.Event;
 import org.traccar.model.Position;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.notification.MessageException;
 import org.traccar.notification.NotificationFormatter;
 import org.traccar.notification.NotificationMessage;
@@ -151,8 +152,17 @@ public class NotificatorPushover extends Notificator {
                                     checkMessageStatus(user, messageIdOrError, smsLimit);
                                 }
                             }, 60000); // 1 dakika
+                            
+                            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                            UserLogs userlogs = new UserLogs(storage);
+                            userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " +  audioId + " Tel: " + user.getPhone() + " User: " + user.getName() );
+                            
                         } else {
                             handleErrorCodes(statusCode, user);
+                            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                            UserLogs userlogs = new UserLogs(storage);
+                            userlogs.saveToDatabase(user.getId(), "Hata-Sesli Mesaj: " +  statusCode + " Tel: " + user.getPhone() + " User:" + user.getName());
+                            
                         }
                     } else {
                         logger.warning("Sesli mesaj gönderimi başarısız: " + response.getStatus());
@@ -163,7 +173,6 @@ public class NotificatorPushover extends Notificator {
                 } else {
                     logger.warning("SMS limiti bulunmuyor.");
                     throw new MessageException("SMS Limiti Yok" + user.getName());
-
                 }
             } else {
                 logger.warning("SMS değeri kullanıcıda tanımlı değil.");
@@ -217,10 +226,12 @@ public class NotificatorPushover extends Notificator {
                         if ("1".equals(statusCode)) {
                             isAnswered = true;
                             break;
+
                         } else {
                             // Diğer durumları işleme al
                             handleMessageStatus(statusCode);
                         }
+                          
                     } else {
                         logger.warning("Beklenmeyen rapor formatı: " + report);
                     }
@@ -239,7 +250,11 @@ public class NotificatorPushover extends Notificator {
                     logger.warning("SMS limit güncellenirken hata: " + e.getMessage());
                 }
             } else {
-                logger.info("Mesaj henüz cevaplanmadı.");
+                logger.info("Mesaj cevaplanmadı.");
+                    // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                UserLogs userlogs = new UserLogs(storage);
+                userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Cevaplanmadı " +  " Tel: " + user.getPhone() + " User:" + user.getName());
+                
             }
         } else {
             logger.warning("Rapor sorgulama başarısız: " + reportResponse.getStatus());

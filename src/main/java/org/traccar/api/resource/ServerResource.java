@@ -27,6 +27,7 @@ import org.traccar.helper.model.UserUtil;
 import org.traccar.mail.MailManager;
 import org.traccar.model.Server;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.session.cache.CacheManager;
 import org.traccar.sms.SmsManager;
 import org.traccar.storage.StorageException;
@@ -111,6 +112,12 @@ public class ServerResource extends BaseResource {
                 new Condition.Equals("id", server.getId())));
         cacheManager.invalidateObject(true, Server.class, server.getId(), ObjectOperation.UPDATE);
         LogAction.edit(getUserId(), server);
+
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "Edit Server" + server.getId());
+
+
         return Response.ok(server).build();
     }
 

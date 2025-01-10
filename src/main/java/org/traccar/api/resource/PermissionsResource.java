@@ -19,6 +19,8 @@ package org.traccar.api.resource;
 import org.traccar.api.BaseResource;
 import org.traccar.helper.LogAction;
 import org.traccar.model.Permission;
+import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.model.UserRestrictions;
 import org.traccar.session.cache.CacheManager;
 import org.traccar.storage.StorageException;
@@ -79,6 +81,11 @@ public class PermissionsResource  extends BaseResource {
             LogAction.link(getUserId(),
                     permission.getOwnerClass(), permission.getOwnerId(),
                     permission.getPropertyClass(), permission.getPropertyId());
+
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+            userlogs.saveToDatabase(getUserId(), "Linked " +  permission.getOwnerClass().getSimpleName() + " : " + permission.getOwnerId() + " - " + permission.getPropertyClass().getSimpleName() + " : " + permission.getPropertyId());
+        
         }
         return Response.noContent().build();
     }
@@ -105,6 +112,11 @@ public class PermissionsResource  extends BaseResource {
             LogAction.unlink(getUserId(),
                     permission.getOwnerClass(), permission.getOwnerId(),
                     permission.getPropertyClass(), permission.getPropertyId());
+
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+            userlogs.saveToDatabase(getUserId(), "UNLINK " + permission.getOwnerClass().getSimpleName() + " : " + permission.getOwnerId() + " - " + permission.getPropertyClass().getSimpleName() + " : " + permission.getPropertyId() );
+            
         }
         return Response.noContent().build();
     }

@@ -23,6 +23,7 @@ import org.traccar.model.BaseModel;
 import org.traccar.model.Group;
 import org.traccar.model.Permission;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.session.ConnectionManager;
 import org.traccar.session.cache.CacheManager;
 import org.traccar.storage.StorageException;
@@ -72,12 +73,17 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
 
         entity.setId(storage.addObject(entity, new Request(new Columns.Exclude("id"))));
         LogAction.create(getUserId(), entity);
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "Created: " + entity.getClass().getSimpleName() + "Id: " + entity.getId());
 
         if (getUserId() != ServiceAccountUser.ID) {
             storage.addPermission(new Permission(User.class, getUserId(), baseClass, entity.getId()));
             cacheManager.invalidatePermission(true, User.class, getUserId(), baseClass, entity.getId(), true);
             connectionManager.invalidatePermission(true, User.class, getUserId(), baseClass, entity.getId(), true);
             LogAction.link(getUserId(), User.class, getUserId(), baseClass, entity.getId());
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            userlogs.saveToDatabase(getUserId(), "Linked: " +  entity.getClass().getSimpleName() + " Id: " + entity.getId());
         }
 
         return Response.ok(entity).build();
@@ -116,6 +122,10 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
         cacheManager.invalidateObject(true, entity.getClass(), entity.getId(), ObjectOperation.UPDATE);
         LogAction.edit(getUserId(), entity);
 
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "Edit: " + entity.getClass().getSimpleName() + " : " + entity.getId());
+
         return Response.ok(entity).build();
     }
 
@@ -129,6 +139,10 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
         cacheManager.invalidateObject(true, baseClass, id, ObjectOperation.DELETE);
 
         LogAction.remove(getUserId(), baseClass, id);
+
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "REMOVE :" + baseClass.getSimpleName() + " : " + id);
 
         return Response.noContent().build();
     }

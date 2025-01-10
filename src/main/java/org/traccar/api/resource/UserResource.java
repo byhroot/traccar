@@ -29,6 +29,7 @@ import org.traccar.model.Device;
 import org.traccar.model.ManagedUser;
 import org.traccar.model.Permission;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Columns;
 import org.traccar.storage.query.Condition;
@@ -121,11 +122,16 @@ public class UserResource extends BaseObjectResource<User> {
                 new Condition.Equals("id", entity.getId())));
 
         LogAction.create(getUserId(), entity);
-
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "Created: " + entity.getClass().getSimpleName() + "Id: " + entity.getId()  + "Name: " + entity.getName());
         if (currentUser != null && currentUser.getUserLimit() != 0) {
             storage.addPermission(new Permission(User.class, getUserId(), ManagedUser.class, entity.getId()));
             LogAction.link(getUserId(), User.class, getUserId(), ManagedUser.class, entity.getId());
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            userlogs.saveToDatabase(getUserId(), "Linked " +  entity.getClass().getSimpleName() + " - Name: " + entity.getName() + " - ID " + entity.getId());
         }
+
         return Response.ok(entity).build();
     }
 

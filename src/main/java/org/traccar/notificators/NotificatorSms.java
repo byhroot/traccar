@@ -22,6 +22,7 @@ import org.traccar.database.StatisticsManager;
 import org.traccar.model.Event;
 import org.traccar.model.Position;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.notification.MessageException;
 import org.traccar.notification.NotificationFormatter;
 import org.traccar.notification.NotificationMessage;
@@ -77,6 +78,10 @@ public class NotificatorSms extends Notificator {
                     } catch (StorageException e) {
                         throw new MessageException("Hata Oluştu - Error updating SMS limit: " + e.getMessage());
                     }
+                    // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                    UserLogs userlogs = new UserLogs(storage);
+                    userlogs.saveToDatabase(user.getId(), "SMS Gönderildi " +  " Tel: " + user.getPhone() + " User:" + user.getName());
+                    
                 } else {
                 
                     throw new MessageException("SMS Limit Yetersiz - SMS limit exceeded");

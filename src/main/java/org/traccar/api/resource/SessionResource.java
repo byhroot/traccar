@@ -24,6 +24,7 @@ import org.traccar.database.OpenIdProvider;
 import org.traccar.helper.LogAction;
 import org.traccar.helper.WebHelper;
 import org.traccar.model.User;
+import org.traccar.model.UserLogs;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Columns;
 import org.traccar.storage.query.Condition;
@@ -84,6 +85,10 @@ public class SessionResource extends BaseResource {
                 request.getSession().setAttribute(USER_ID_KEY, user.getId());
                 request.getSession().setAttribute(EXPIRATION_KEY, loginResult.getExpiration());
                 LogAction.login(user.getId(), WebHelper.retrieveRemoteAddress(request));
+                
+                // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                UserLogs userlogs = new UserLogs(storage);
+                userlogs.saveToDatabase(user.getId(), "Login Token - IP:" + WebHelper.retrieveRemoteAddress(request));
                 return user;
             }
         }
@@ -96,6 +101,11 @@ public class SessionResource extends BaseResource {
             }
             //takipon giriş loglaması yapıldı
             LogAction.logSocketLogin(userId, WebHelper.retrieveRemoteAddress(request));
+            
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+            userlogs.saveToDatabase(user.getId(), "Login Socket - IP: " + WebHelper.retrieveRemoteAddress(request));
+ 
         }
 
         throw new WebApplicationException(Response.status(Response.Status.NOT_FOUND).build());
@@ -109,6 +119,11 @@ public class SessionResource extends BaseResource {
                 new Columns.All(), new Condition.Equals("id", userId)));
         request.getSession().setAttribute(USER_ID_KEY, user.getId());
         LogAction.login(user.getId(), WebHelper.retrieveRemoteAddress(request));
+
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(user.getId(), "Login ID - IP: " + WebHelper.retrieveRemoteAddress(request));
+
         return user;
     }
 
@@ -132,9 +147,21 @@ public class SessionResource extends BaseResource {
             User user = loginResult.getUser();
             request.getSession().setAttribute(USER_ID_KEY, user.getId());
             LogAction.login(user.getId(), WebHelper.retrieveRemoteAddress(request));
+
+
+             // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+             UserLogs userlogs = new UserLogs(storage);
+             userlogs.saveToDatabase(user.getId(), "Login Password - IP: " + WebHelper.retrieveRemoteAddress(request));
+  
+
             return user;
         } else {
             LogAction.failedLogin(WebHelper.retrieveRemoteAddress(request));
+            
+            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+            UserLogs userlogs = new UserLogs(storage);
+            userlogs.saveToDatabase(getUserId(), "FailedLogin - IP:" + WebHelper.retrieveRemoteAddress(request));
+
             throw new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
         }
     }
@@ -142,8 +169,16 @@ public class SessionResource extends BaseResource {
     @DELETE
     public Response remove() {
         LogAction.logout(getUserId(), WebHelper.retrieveRemoteAddress(request));
+
+        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+        UserLogs userlogs = new UserLogs(storage);
+        userlogs.saveToDatabase(getUserId(), "Logout - IP: " + WebHelper.retrieveRemoteAddress(request));
+
+        
         request.getSession().removeAttribute(USER_ID_KEY);
         return Response.noContent().build();
+
+ 
     }
 
     @Path("token")
