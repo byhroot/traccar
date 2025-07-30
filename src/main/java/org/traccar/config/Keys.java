@@ -1978,5 +1978,32 @@ public final class Keys {
     public static final ConfigKey<Boolean> BROADCAST_SECONDARY = new BooleanConfigKey(
             "broadcast.secondary",
             List.of(KeyType.CONFIG));
+    /**
+     * Backend Paylink Api Key
+     */
+    public static final ConfigKey<String> PAYLINK_APIKEY = new StringConfigKey(
+            "paylink.apikey",
+            List.of(KeyType.CONFIG));
+     /**
+            * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<String> PAYLINK_SITEID = new StringConfigKey(
+            "paylink.siteid",
+            List.of(KeyType.CONFIG));
+     /**
+            * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<String> PAYLINK_STDPRICE = new StringConfigKey(
+            "paylink.stdprice",
+            List.of(KeyType.CONFIG));
+     /**
+            * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<String> PAYLINK_smsprice = new StringConfigKey(
+            "paylink.smsprice",
+            List.of(KeyType.CONFIG));
 
+     public static final ConfigKey<String> OPENID_GROUPS_CLAIM_NAME = new StringConfigKey(
+        "openid.groupsClaimName",
+        List.of(KeyType.CONFIG));
 }

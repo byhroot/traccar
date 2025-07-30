@@ -160,7 +160,7 @@ public class SessionResource extends BaseResource {
             
             // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
             UserLogs userlogs = new UserLogs(storage);
-            userlogs.saveToDatabase(getUserId(), "FailedLogin - IP:" + WebHelper.retrieveRemoteAddress(request));
+            userlogs.saveToDatabase(getUserId(), "FailedLogin - Email: " + email + " - IP: " + WebHelper.retrieveRemoteAddress(request));
 
             throw new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
         }

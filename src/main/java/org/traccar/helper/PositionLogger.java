@@ -88,7 +88,7 @@ public class PositionLogger {
                     break;
             }
         }
-        LOGGER.debug(builder.toString());
+        LOGGER.info(builder.toString());
     }
 
 }

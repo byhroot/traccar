@@ -40,12 +40,14 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Collection;
+import java.util.Map;
 
 @Path("users")
 @Produces(MediaType.APPLICATION_JSON)
@@ -61,6 +63,47 @@ public class UserResource extends BaseObjectResource<User> {
     public UserResource() {
         super(User.class);
     }
+    //kullanıcı SMS Limiti Admin Kontrolü
+    @Path("{id}")
+    @PUT
+    @Override
+    public Response update(User entity) throws Exception {
+        if (permissionsService.notAdmin(getUserId())) {
+
+            // Kullanıcının kendi verisini güncelleme yetkisi var mı
+            permissionsService.checkPermission(User.class, getUserId(), entity.getId());
+
+            // Mevcut kullanıcı verisini veritabanından çekiyoruz
+            User existing = storage.getObject(User.class, new Request(
+                    new Columns.All(), new Condition.Equals("id", entity.getId())));
+
+            if (existing != null) {
+                entity.setExpirationTime(existing.getExpirationTime());
+                entity.setPhone(existing.getPhone());
+
+                Map<String, Object> existingAttrs = existing.getAttributes();
+                Map<String, Object> updatedAttrs = entity.getAttributes();
+
+                if (existingAttrs != null && updatedAttrs != null) {
+                    // Admin değilse smsLimit’i değiştiremesin
+                    if (updatedAttrs.containsKey("smsLimit")) {
+                        Object originalSmsLimit = existingAttrs.get("smsLimit");
+                        if (originalSmsLimit != null) {
+                            updatedAttrs.put("smsLimit", originalSmsLimit);
+                        } else {
+                            updatedAttrs.remove("smsLimit");
+                        }
+                    }
+                }
+
+            } else {
+                throw new IllegalArgumentException("User not found");
+            }
+        }
+
+        return super.update(entity);
+    }
+
 
     @GET
     public Collection<User> get(

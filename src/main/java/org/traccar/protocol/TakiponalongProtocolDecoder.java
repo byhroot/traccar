@@ -31,14 +31,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
-public class TakiponProtocolDecoder extends BaseProtocolDecoder {
+public class TakiponalongProtocolDecoder extends BaseProtocolDecoder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TakiponProtocolDecoder.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TakiponalongProtocolDecoder.class);
 
     private final Map<Integer, ByteBuf> photos = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    public TakiponProtocolDecoder(Protocol protocol) {
+    public TakiponalongProtocolDecoder(Protocol protocol) {
         super(protocol);
     }
 

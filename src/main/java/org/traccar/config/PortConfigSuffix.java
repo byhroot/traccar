@@ -266,6 +266,8 @@ public class PortConfigSuffix extends ConfigSuffix<Integer> {
         PORTS.put("valtrack", 5255);
         PORTS.put("snapper", 5256);
         PORTS.put("takipon", 5250);
+        PORTS.put("takiponalong", 5260);
+
 
     }
 

@@ -79,21 +79,23 @@ public class NotificatorPushover extends Notificator {
                     Message message = new Message();
                     message.title = shortMessage.getSubject();
                     message.message = shortMessage.getBody();
+                    int audioId = -1;
+
+                    String titleLower = message.title.toLowerCase();
                     
-                    int audioId;
-                    
-                    if (message.title.toLowerCase().contains("alarm")) {
+                    // audioId eşleşmesi
+                    if (titleLower.contains("alarm")) {
                         audioId = 104389777;
-                    } else if (message.title.toLowerCase().contains("siparis")) {
+                    } else if (titleLower.contains("siparis")) {
                         audioId = 104389657;
-                    } else if (message.title.toLowerCase().contains("aktivasyon")) {
+                    } else if (titleLower.contains("aktivasyon")) {
                         audioId = 104389657;
-                    } else if (message.title.toLowerCase().contains("yillik")) {
+                    } else if (titleLower.contains("yillik")) {
                         audioId = 104389687;
-                    } else if (message.title.toLowerCase().contains("test")) {
+                    } else if (titleLower.contains("test")) {
                         audioId = 104389720;
                     } else {
-                        audioId = 104389777;  // Varsayılan bir değer
+                        audioId = -1;  // bu değer ile, ses gönderilmeyeceğini anlayacağız
                     }
                     
         
@@ -114,8 +116,16 @@ public class NotificatorPushover extends Notificator {
                     // Series kısmı
                     Map<String, String> seriesMap = new HashMap<>();
                     seriesMap.put("seri", "1");
-                    seriesMap.put("audioid", String.valueOf(audioId));
-        
+                    
+                    // Eğer uygun başlık varsa audioid ekle, yoksa text ekle
+                    if (titleLower.contains("siparis") || titleLower.contains("aktivasyon")
+                    || titleLower.contains("yillik") || titleLower.contains("test")) {
+                        seriesMap.put("audioid", String.valueOf(audioId));
+                    } else {
+                        seriesMap.put("text", "Merhaba, TakipOn'dan bir bildiriminiz var. " 
+                            + message.message 
+                            + " Bildirim detaylarını Mobil uygulamadan görüntüleyebilirsiniz. Güvenli Günler Dileriz.");
+                    }
                     // Numbers kısmı
                     Map<String, String> numbersMap = new HashMap<>();
                     numbersMap.put("no", user.getPhone());
@@ -162,7 +172,8 @@ public class NotificatorPushover extends Notificator {
                             // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
                             UserLogs userlogs = new UserLogs(storage);
                             userlogs.saveToDatabase(user.getId(), "Hata-Sesli Mesaj: " +  statusCode + " Tel: " + user.getPhone() + " User:" + user.getName());
-                            
+                            logger.warning("Sesli mesaj Hatası. Mesaj ID: " + messageIdOrError);
+
                         }
                     } else {
                         logger.warning("Sesli mesaj gönderimi başarısız: " + response.getStatus());

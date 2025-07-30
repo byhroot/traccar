@@ -87,7 +87,7 @@ public class BufferingManager {
     private Timeout scheduleTimeout(Holder holder) {
         return timer.newTimeout(
                 timeout -> {
-                    LOGGER.debug("released {}", holder.position.getFixTime());
+                    LOGGER.info("released {}", holder.position.getFixTime());
                     buffer.get(holder.position.getDeviceId()).remove(holder);
                     callback.onReleased(holder.context, holder.position);
                 },
@@ -97,7 +97,7 @@ public class BufferingManager {
     public void accept(ChannelHandlerContext context, Position position) {
         if (threshold > 0) {
             synchronized (buffer) {
-                LOGGER.debug("queued {}", position.getFixTime());
+                LOGGER.info("queued {}", position.getFixTime());
                 var queue = buffer.computeIfAbsent(position.getDeviceId(), k -> new TreeSet<>());
                 Holder holder = new Holder(context, position);
                 holder.timeout = scheduleTimeout(holder);
