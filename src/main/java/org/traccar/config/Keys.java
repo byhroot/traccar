@@ -1993,12 +1993,18 @@ public final class Keys {
      /**
             * Backend Paylink Siteİd
      */
-    public static final ConfigKey<String> PAYLINK_STDPRICE = new StringConfigKey(
-            "paylink.stdprice",
-            List.of(KeyType.CONFIG));
+    public static final ConfigKey<Integer> PAYLINK_YILLIKPRICE = new IntegerConfigKey(
+            "paylink.yillikprice",
+            List.of(KeyType.CONFIG),1440);
      /**
             * Backend Paylink Siteİd
      */
+    public static final ConfigKey<Integer> PAYLINK_PROFARKPRICE = new IntegerConfigKey(
+        "paylink.profarkprice",
+        List.of(KeyType.CONFIG),490);
+ /**
+        * Backend Paylink Siteİd
+ */
     public static final ConfigKey<String> PAYLINK_smsprice = new StringConfigKey(
             "paylink.smsprice",
             List.of(KeyType.CONFIG));

@@ -25,8 +25,10 @@ import org.traccar.model.Position;
 
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
@@ -36,19 +38,37 @@ public class TakiponalongProtocolDecoder extends BaseProtocolDecoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(TakiponalongProtocolDecoder.class);
 
     private final Map<Integer, ByteBuf> photos = new HashMap<>();
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final Map<DeviceSession, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
     public TakiponalongProtocolDecoder(Protocol protocol) {
         super(protocol);
     }
 
-    private void scheduleResetSkipFirstLocation(DeviceSession deviceSession) {
-        scheduler.schedule(() -> {
-            deviceSession.setSkipFirstLocation(false);
-            LOGGER.debug("10 saniye boyunca konumlar filtrelendi");
-        }, 10, TimeUnit.SECONDS);
-    }
 
+    private void scheduleResetSkipFirstLocation(DeviceSession deviceSession) {
+        ScheduledFuture<?> previous = scheduledTasks.remove(deviceSession);
+        if (previous != null) {
+            previous.cancel(false); // eski task'ı iptal et
+            LOGGER.info("Önceki skipFirstLocation task iptal edildi, DeviceSession: {}", deviceSession.getDeviceId());
+        }
+    
+        ScheduledFuture<?> future = scheduler.schedule(() -> {
+            deviceSession.setSkipFirstLocation(false);
+            LOGGER.info("10 saniye sonra skipFirstLocation resetlendi, DeviceSession: {}", deviceSession.getDeviceId());
+            scheduledTasks.remove(deviceSession);
+            LOGGER.info("Task map'ten temizlendi, DeviceSession: {}", deviceSession.getDeviceId());
+        }, 10, TimeUnit.SECONDS);
+    
+        scheduledTasks.put(deviceSession, future);
+        LOGGER.info("Yeni skipFirstLocation task planlandı, DeviceSession: {}", deviceSession.getDeviceId());
+    }
+    
+    // sunucu kapanırken
+    public void shutdownScheduler() {
+        LOGGER.info("Sunucu Kapanıyor, TakipOn Protokol Tasklar kapanıyor");
+        scheduler.shutdownNow();
+        scheduledTasks.clear();
+    }
 
     public static final int MSG_LOGIN = 0x01;               ////SEEWORLD LOGİN 
     public static final int MSG_GPS_LBS_1 = 0x12;               ////SEEWORLD LOCATİON 

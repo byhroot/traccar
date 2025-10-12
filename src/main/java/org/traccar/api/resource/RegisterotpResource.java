@@ -17,20 +17,31 @@ import org.json.JSONObject; // Eğer yoksa basit String parse de yapabiliriz
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.traccar.api.BaseResource;
+import org.traccar.model.User;
 import org.traccar.model.UserLogs;
+import org.traccar.notification.NotificationMessage;
 import org.traccar.sms.SmsManager;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
+import org.traccar.storage.query.Columns;
+import org.traccar.storage.query.Condition;
+import org.traccar.storage.query.Request;
 
+
+import org.traccar.notification.NotificationMessage;
+import org.traccar.notification.NotificatorManager;
 import java.util.*;
 import java.util.concurrent.*;
+
 
 @Path("registerotp")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Singleton
 public class RegisterotpResource extends BaseResource {
-
+    @Inject
+    private NotificatorManager notificatorManager;
+    
     private static final Logger LOGGER = LoggerFactory.getLogger(RegisterotpResource.class);
 
     private static final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
@@ -216,6 +227,27 @@ public class RegisterotpResource extends BaseResource {
             valid = true;
             reason = "Kod doğrulandı";
             otpStore.remove(id);
+        }
+                        
+        // Admin kullanıcıları çek
+        Request request = new Request(
+            new Columns.All(), // Tüm kolonlar
+            new Condition.Equals("administrator", true) // administrator alanı true olanları al
+        );
+
+        List<User> adminUsers = storage.getObjects(User.class, request);
+        // Notification gönderme
+        for (User admin : adminUsers) {
+            try {
+                String subject = "Yeni OTP Doğrulama";
+                String body = "Kullanıcı bir OTP doğrulaması gerçekleştirdi: ID numarası:" + id + " Teşekürler.";
+
+                NotificationMessage message = new NotificationMessage(subject, body);
+
+                notificatorManager.getNotificator("firebase").send(admin, message, null, null);
+            } catch (Exception e) {
+                LOGGER.warn("Notification admin {} gönderilemedi: {}", admin.getId(), e.getMessage());
+            }
         }
 
         LOGGER.info("OTP doğrulama -> id={}, geçerli={}, sebep={}, ip={}", id, valid, reason, clientIp);

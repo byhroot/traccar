@@ -19,6 +19,9 @@ import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Condition;
 import org.traccar.storage.query.Request;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -36,6 +39,9 @@ public class NotificatorPushover extends Notificator {
     private static final Logger logger = Logger.getLogger(NotificatorPushover.class.getName());
 
     private final Client client;
+
+    private static final ScheduledExecutorService scheduler =
+    Executors.newScheduledThreadPool(2); // 2 thread yeterlidir
 
     public static class Message {
         @JsonProperty("token")
@@ -93,7 +99,7 @@ public class NotificatorPushover extends Notificator {
                     } else if (titleLower.contains("yillik")) {
                         audioId = 104389687;
                     } else if (titleLower.contains("test")) {
-                        audioId = 104389720;
+                        audioId = 140029795;
                     } else {
                         audioId = -1;  // bu değer ile, ses gönderilmeyeceğini anlayacağız
                     }
@@ -139,48 +145,52 @@ public class NotificatorPushover extends Notificator {
                     jsonData.put("header", headerMap);
                     jsonData.put("body", bodyMap);
         
-                    Response response = client.target(apiUrl)
+                    try (Response response = client.target(apiUrl)
                         .request()
-                        .post(Entity.json(jsonData));
+                        .post(Entity.json(jsonData))) {
+            
         
-                    if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-                        String responseBody = response.readEntity(String.class);
-                        logger.info("API yanıtı: " + responseBody);
-        
-                        // Yanıtı ayrıştırma
-                        String[] parts = responseBody.split(" ");
-                        String statusCode = parts[0]; // İlk kısım durum kodu
-                        String messageIdOrError = parts.length > 1 ? parts[1] : ""; // İkinci kısım mesaj ID'si veya hata mesajı
-        
-                        if ("00".equals(statusCode)) {
-                            logger.info("Sesli mesaj başarıyla gönderildi. Mesaj ID: " + messageIdOrError);
-        
-                            // 3 dakika sonra durum sorgulama işlemi
-                            new Timer().schedule(new TimerTask() {
-                                @Override
-                                public void run() {
-                                    checkMessageStatus(user, messageIdOrError, smsLimit);
-                                }
-                            }, 60000); // 1 dakika
-                            
-                            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
-                            UserLogs userlogs = new UserLogs(storage);
-                            userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " +  audioId + " Tel: " + user.getPhone() + " User: " + user.getName() );
-                            
+                        if (response.getStatus() == Response.Status.OK.getStatusCode()) {
+                            String responseBody = response.readEntity(String.class);
+                            logger.info("API yanıtı: " + responseBody);
+            
+                            // Yanıtı ayrıştırma
+                            String[] parts = responseBody.split(" ");
+                            String statusCode = parts[0]; // İlk kısım durum kodu
+                            String messageIdOrError = parts.length > 1 ? parts[1] : ""; // İkinci kısım mesaj ID'si veya hata mesajı
+            
+                            if ("00".equals(statusCode)) {
+                                logger.info("Sesli mesaj başarıyla gönderildi. Mesaj ID: " + messageIdOrError);
+            
+                                // 3 dakika sonra durum sorgulama işlemi
+                                scheduler.schedule(() -> {
+                                    try {
+                                        checkMessageStatus(user, messageIdOrError, smsLimit);
+                                    } catch (Exception e) {
+                                        logger.warning("Mesaj durumu kontrol edilirken hata: " + e.getMessage());
+                                    }
+                                }, 2, TimeUnit.MINUTES);
+
+                                
+                                // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                                UserLogs userlogs = new UserLogs(storage);
+                                userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " +  audioId + " Tel: " + user.getPhone() + " User: " + user.getName() );
+                                
+                            } else {
+                                handleErrorCodes(statusCode, user);
+                                // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                                UserLogs userlogs = new UserLogs(storage);
+                                userlogs.saveToDatabase(user.getId(), "Hata-Sesli Mesaj: " +  statusCode + " Tel: " + user.getPhone() + " User:" + user.getName());
+                                logger.warning("Sesli mesaj Hatası. Mesaj ID: " + messageIdOrError);
+
+                            }
                         } else {
-                            handleErrorCodes(statusCode, user);
-                            // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
-                            UserLogs userlogs = new UserLogs(storage);
-                            userlogs.saveToDatabase(user.getId(), "Hata-Sesli Mesaj: " +  statusCode + " Tel: " + user.getPhone() + " User:" + user.getName());
-                            logger.warning("Sesli mesaj Hatası. Mesaj ID: " + messageIdOrError);
+                            logger.warning("Sesli mesaj gönderimi başarısız: " + response.getStatus());
+                            throw new MessageException("Sesli mesaj gönderimi başarısız: " + response.getStatus());
 
                         }
-                    } else {
-                        logger.warning("Sesli mesaj gönderimi başarısız: " + response.getStatus());
-                        throw new MessageException("Sesli mesaj gönderimi başarısız: " + response.getStatus());
-
                     }
-                    response.close();
+
                 } else {
                     logger.warning("SMS limiti bulunmuyor.");
                     throw new MessageException("SMS Limiti Yok" + user.getName());
@@ -210,67 +220,67 @@ public class NotificatorPushover extends Notificator {
         );
     
         // GET isteğini gönderiyoruz
-        Response reportResponse = client.target(reportApiUrl)
+        try (Response reportResponse = client.target(reportApiUrl)
             .request()
-            .get(); // GET isteği
+            .get()) {
     
     
-        if (reportResponse.getStatus() == Response.Status.OK.getStatusCode()) {
-            String reportStatus = reportResponse.readEntity(String.class);
-            logger.info("Rapor Durumu: " + reportStatus);
-        
-            // Gelen rapor durumunu parçalama
-            String[] reports = reportStatus.split("<br>"); // '<br>' ile ayır
-            boolean isAnswered = false;
-        
-            for (String report : reports) {
-                report = report.trim(); // Satırı kırparak boşlukları kaldır
-        
-                if (!report.isEmpty()) { // Boş satırları atla
-                    String[] details = report.split("\\s+"); // Boşluk karakterleri ile ayır
-        
-                    // Durumu kontrol et
-                    if (details.length >= 3) { // 3 eleman var mı?
-                        String statusCode = details[2].trim(); // 3. eleman durumu temsil ediyor
-        
-                        // Cevaplananlar (1) durumunu kontrol et
-                        if ("1".equals(statusCode)) {
-                            isAnswered = true;
-                            break;
+            if (reportResponse.getStatus() == Response.Status.OK.getStatusCode()) {
+                String reportStatus = reportResponse.readEntity(String.class);
+                logger.info("Rapor Durumu: " + reportStatus);
+            
+                // Gelen rapor durumunu parçalama
+                String[] reports = reportStatus.split("<br>"); // '<br>' ile ayır
+                boolean isAnswered = false;
+            
+                for (String report : reports) {
+                    report = report.trim(); // Satırı kırparak boşlukları kaldır
+            
+                    if (!report.isEmpty()) { // Boş satırları atla
+                        String[] details = report.split("\\s+"); // Boşluk karakterleri ile ayır
+            
+                        // Durumu kontrol et
+                        if (details.length >= 3) { // 3 eleman var mı?
+                            String statusCode = details[2].trim(); // 3. eleman durumu temsil ediyor
+            
+                            // Cevaplananlar (1) durumunu kontrol et
+                            if ("1".equals(statusCode)) {
+                                isAnswered = true;
+                                break;
 
+                            } else {
+                                // Diğer durumları işleme al
+                                handleMessageStatus(statusCode);
+                            }
+                            
                         } else {
-                            // Diğer durumları işleme al
-                            handleMessageStatus(statusCode);
+                            logger.warning("Beklenmeyen rapor formatı: " + report);
                         }
-                          
-                    } else {
-                        logger.warning("Beklenmeyen rapor formatı: " + report);
                     }
                 }
-            }
-        
-            if (isAnswered) {
-                try {
-                    user.set("smsLimit", smsLimit - 4); // SMS limitini 1 azalt
-                    storage.updateObject(user, new Request(
-                            new Columns.Include("attributes"),
-                            new Condition.Equals("id", user.getId())));
-                    statisticsManager.registerSms();
-                    logger.info("Çağrı Cevaplandı - SMS limiti başarıyla güncellendi.");
-                } catch (StorageException e) {
-                    logger.warning("SMS limit güncellenirken hata: " + e.getMessage());
+            
+                if (isAnswered) {
+                    try {
+                        user.set("smsLimit", smsLimit - 4); // SMS limitini 1 azalt
+                        storage.updateObject(user, new Request(
+                                new Columns.Include("attributes"),
+                                new Condition.Equals("id", user.getId())));
+                        statisticsManager.registerSms();
+                        logger.info("Çağrı Cevaplandı - SMS limiti başarıyla güncellendi.");
+                    } catch (StorageException e) {
+                        logger.warning("SMS limit güncellenirken hata: " + e.getMessage());
+                    }
+                } else {
+                    logger.info("Mesaj cevaplanmadı.");
+                        // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
+                    UserLogs userlogs = new UserLogs(storage);
+                    userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Cevaplanmadı " +  " Tel: " + user.getPhone() + " User:" + user.getName());
+                    
                 }
             } else {
-                logger.info("Mesaj cevaplanmadı.");
-                    // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
-                UserLogs userlogs = new UserLogs(storage);
-                userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Cevaplanmadı " +  " Tel: " + user.getPhone() + " User:" + user.getName());
-                
+                logger.warning("Rapor sorgulama başarısız: " + reportResponse.getStatus());
             }
-        } else {
-            logger.warning("Rapor sorgulama başarısız: " + reportResponse.getStatus());
         }
-        reportResponse.close();
     }
     
     
@@ -333,5 +343,9 @@ public class NotificatorPushover extends Notificator {
                 break;
         }
     }
-
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            scheduler.shutdown();
+        }));
+    }
 }
