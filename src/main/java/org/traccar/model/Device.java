@@ -175,13 +175,13 @@ public class Device extends GroupedModel implements Disableable, Schedulable {
 
     private boolean motionState;
 
-    @QueryIgnore
-    @JsonIgnore
+    //@QueryIgnore
+    //@JsonIgnore
     public boolean getMotionState() {
         return motionState;
     }
 
-    @JsonIgnore
+    //@JsonIgnore
     public void setMotionState(boolean motionState) {
         this.motionState = motionState;
     }
