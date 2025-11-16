@@ -40,6 +40,7 @@ import org.traccar.storage.query.Request;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -96,6 +97,42 @@ public class DeviceResource extends BaseObjectResource<Device> {
         super(Device.class);
     }
 
+    //admin cihaz yönetimi
+    @Path("{id}")
+    @PUT
+    @Override
+    public Response update(Device entity) throws Exception {
+        if (permissionsService.notAdmin(getUserId())) {
+    
+            // Kullanıcı yetkili mi diye kontrol ediliyor
+            permissionsService.checkPermission(Device.class, getUserId(), entity.getId());
+    
+            // Doğru şekilde getObject kullanımı
+            Device existing = storage.getObject(Device.class, new Request(
+                    new Columns.All(), new Condition.Equals("id", entity.getId())));
+    
+            if (existing != null) {
+                entity.setExpirationTime(existing.getExpirationTime());
+                entity.setName(existing.getName());
+
+            } else {
+                throw new IllegalArgumentException("Device not found");
+            }
+        }
+    
+        return super.update(entity);
+    }
+    //device delete işlemi için admin gereksinimi
+    @Path("{id}")
+    @DELETE
+    @Override
+    public Response remove(@PathParam("id") long id) throws Exception {
+        if (permissionsService.notAdmin(getUserId())) {
+            throw new SecurityException("Only admin can delete devices");
+        }
+        return super.remove(id);
+    }
+    
     @GET
     public Stream<Device> get(
             @QueryParam("all") boolean all, @QueryParam("userId") long userId,

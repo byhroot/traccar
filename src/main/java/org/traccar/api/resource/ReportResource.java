@@ -176,7 +176,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
             @QueryParam("from") Date from,
             @QueryParam("to") Date to) throws StorageException {
         permissionsService.checkRestriction(getUserId(), UserRestrictions::getDisableReports);
-        actionLogger.report(request, getUserId(), false, "events", from, to, deviceIds, groupIds);
+        //actionLogger.report(request, getUserId(), false, "events", from, to, deviceIds, groupIds);
         return eventsReportProvider.getObjects(getUserId(), deviceIds, groupIds, types, alarms, from, to);
     }
 
@@ -221,7 +221,7 @@ public class ReportResource extends SimpleObjectResource<Report> {
             @QueryParam("to") Date to,
             @QueryParam("daily") boolean daily) throws StorageException {
         permissionsService.checkRestriction(getUserId(), UserRestrictions::getDisableReports);
-        actionLogger.report(request, getUserId(), false, "summary", from, to, deviceIds, groupIds);
+        //actionLogger.report(request, getUserId(), false, "summary", from, to, deviceIds, groupIds);
         return summaryReportProvider.getObjects(getUserId(), deviceIds, groupIds, from, to, daily);
     }
 

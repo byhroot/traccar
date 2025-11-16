@@ -69,6 +69,9 @@ public class Command extends BaseCommand {
     public static final String TYPE_ALARM_SPEED = "alarmSpeed";
     public static final String TYPE_ALARM_FALL = "alarmFall";
     public static final String TYPE_ALARM_VIBRATION = "alarmVibration";
+    public static final String TYPE_ALARM_VIBRATIONON = "alarmVibrationon";
+    public static final String TYPE_ALARM_VIBRATIONOFF = "alarmVibrationoff";
+    public static final String TYPE_ALARM_VIBRATIONLEVEL = "alarmVibrationlevel";
 
     public static final String KEY_UNIQUE_ID = "uniqueId";
     public static final String KEY_FREQUENCY = "frequency";
@@ -83,6 +86,7 @@ public class Command extends BaseCommand {
     public static final String KEY_PHONE = "phone";
     public static final String KEY_SERVER = "server";
     public static final String KEY_PORT = "port";
+    public static final String KEY_SENSORLEVEL = "alarmSensorlevel";
     public static final String KEY_NO_QUEUE = "noQueue";
 
     @QueryIgnore

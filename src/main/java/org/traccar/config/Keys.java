@@ -2039,5 +2039,54 @@ public final class Keys {
     public static final ConfigKey<Boolean> BROADCAST_SECONDARY = new BooleanConfigKey(
             "broadcast.secondary",
             List.of(KeyType.CONFIG));
+    /**
+     * Backend Paylink Api Key
+     */
+    public static final ConfigKey<String> PAYLINK_APIKEY = new StringConfigKey(
+            "paylink.apikey",
+            List.of(KeyType.CONFIG));
+     /**
+            * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<String> PAYLINK_SITEID = new StringConfigKey(
+            "paylink.siteid",
+            List.of(KeyType.CONFIG));
+     /**
+            * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<Integer> PAYLINK_YILLIKPRICE = new IntegerConfigKey(
+            "paylink.yillikprice",
+            List.of(KeyType.CONFIG),1440);
+     /**
+            * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<Integer> PAYLINK_PROFARKPRICE = new IntegerConfigKey(
+        "paylink.profarkprice",
+        List.of(KeyType.CONFIG),490);
+     /**
+        * Backend Paylink Siteİd
+     */
+    public static final ConfigKey<String> PAYLINK_smsprice = new StringConfigKey(
+            "paylink.smsprice",
+            List.of(KeyType.CONFIG));
 
+      /**
+         * Enable to Processing Event İdle All devices. Disabled by default.
+      */
+    public static final ConfigKey<Boolean> PROCESSING_EVENT_IDLE = new BooleanConfigKey(
+        "processing.event.idle",
+        List.of(KeyType.CONFIG),false);
+
+      /**
+      * 
+     /**
+        If there is no movement while the vehicle is on, or if there is no movement for a certain period when the speed drops to 0, the alarm_parking status is triggered based on the idle time.
+        ****NOTICE****: Must be used together; processing.copyAttributes.enable true and processing.copyAttributes "idleStartTime,idleAlarmStatus" must be added.
+        A time period longer than the device's heart rate/period data upload time must be selected.
+        Default Value: 20 Minutes
+     */
+    public static final ConfigKey<Long> EVENT_IDLE_MINIMUM_DURATION = new LongConfigKey(
+        "processing.event.idle.duration",
+        List.of(KeyType.CONFIG),20L);
+    
 }

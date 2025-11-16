@@ -1,0 +1,168 @@
+#set($alarmEmoji = "🚨")
+#set($alarmKey = $event.getString('alarm'))
+#if($alarmKey == "general")
+  #set($alarmEmoji = "🔔")
+#elseif($alarmKey == "sos")
+  #set($alarmEmoji = "🆘")
+#elseif($alarmKey == "vibration")
+  #set($alarmEmoji = "📳")
+#elseif($alarmKey == "movement")
+  #set($alarmEmoji = "🏃")
+#elseif($alarmKey == "lowspeed")
+  #set($alarmEmoji = "🐢")
+#elseif($alarmKey == "overspeed")
+  #set($alarmEmoji = "🚀")
+#elseif($alarmKey == "fallDown")
+  #set($alarmEmoji = "🤕")
+#elseif($alarmKey == "lowPower")
+  #set($alarmEmoji = "🔋⚠️")
+#elseif($alarmKey == "lowBattery")
+  #set($alarmEmoji = "🔋")
+#elseif($alarmKey == "fault")
+  #set($alarmEmoji = "⚙️❗")
+#elseif($alarmKey == "powerOff")
+  #set($alarmEmoji = "❌🔌")
+#elseif($alarmKey == "powerOn")
+  #set($alarmEmoji = "✅🔌")
+#elseif($alarmKey == "door")
+  #set($alarmEmoji = "🚪")
+#elseif($alarmKey == "lock")
+  #set($alarmEmoji = "🔒")
+#elseif($alarmKey == "unlock")
+  #set($alarmEmoji = "🔓")
+#elseif($alarmKey == "geofence")
+  #set($alarmEmoji = "🗺️")
+#elseif($alarmKey == "geofenceEnter")
+  #set($alarmEmoji = "🗺️ ⬇️")
+#elseif($alarmKey == "geofenceExit")
+  #set($alarmEmoji = "🗺️ ⬆️")
+#elseif($alarmKey == "gpsAntennaCut")
+  #set($alarmEmoji = "📡❌")
+#elseif($alarmKey == "accident")
+  #set($alarmEmoji = "🚨")
+#elseif($alarmKey == "tow")
+  #set($alarmEmoji = "🚛")
+#elseif($alarmKey == "idle")
+  #set($alarmEmoji = "🕒")
+#elseif($alarmKey == "highRpm")
+  #set($alarmEmoji = "💨")
+#elseif($alarmKey == "hardAcceleration")
+  #set($alarmEmoji = "🏎️💨")
+#elseif($alarmKey == "hardBraking")
+  #set($alarmEmoji = "🛑")
+#elseif($alarmKey == "hardCornering")
+  #set($alarmEmoji = "↪️⚠️")
+#elseif($alarmKey == "laneChange")
+  #set($alarmEmoji = "🚧")
+#elseif($alarmKey == "fatigueDriving")
+  #set($alarmEmoji = "😴")
+#elseif($alarmKey == "powerCut")
+  #set($alarmEmoji = "🔋❌")
+#elseif($alarmKey == "powerRestored")
+  #set($alarmEmoji = "🔋✅")
+#elseif($alarmKey == "jamming")
+  #set($alarmEmoji = "📡🚫")
+#elseif($alarmKey == "temperature")
+  #set($alarmEmoji = "🌡️")
+#elseif($alarmKey == "parking")
+  #set($alarmEmoji = "🅿️🔑")
+#elseif($alarmKey == "bonnet")
+  #set($alarmEmoji = "🚗")
+#elseif($alarmKey == "footBrake")
+  #set($alarmEmoji = "🛑")
+#elseif($alarmKey == "fuelLeak")
+  #set($alarmEmoji = "⛽❗")
+#elseif($alarmKey == "tampering")
+  #set($alarmEmoji = "🛠️❗")
+#elseif($alarmKey == "removing")
+  #set($alarmEmoji = "📟❗")
+#end
+
+#set($subject = " $alarmEmoji Alarm Algılandı🚨")
+#set($alarmKey = $translations.get("alarm${alarmKey.substring(0, 1).toUpperCase()}${alarmKey.substring(1)}"))
+#set($digest = "$device.name : $alarmKey Alarmı Algılandı. $dateTool.format('yyyy-MM-dd HH:mm', $event.eventTime, $locale, $timezone)")
+
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 30px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .header {
+            text-align: center;
+            background-color: #004d99;
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .content {
+            color: #333333;
+            padding: 20px;
+        }
+        .content p {
+            margin: 15px 0;
+        }
+        .content a {
+            color: #004d99;
+            text-decoration: none;
+        }
+        .content a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #999999;
+            margin-top: 20px;
+        }
+        .footer a {
+            color: #004d99;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1> $device.name: 🚨 Alarm Algılandı:$alarmEmoji $alarmKey </h1>
+        </div>
+        <div class="content">
+            <p>Zaman: $dateTool.format("dd-MM-YYYY HH:mm:ss", $event.eventTime, $locale, $timezone)</p>
+            <p>Konum: <a href="$webUrl/event/$event.id">#{if}($position.address)$position.address#{else}$position.latitude&deg;, $position.longitude&deg;#{end}</a><br></a></p>
+
+            <p>Herhangi bir sorunuz veya desteğe ihtiyacınız olursa lütfen bize ulaşın.</p>
+            <p>Sevgilerle,</p>
+            <p><strong>TakipOn Ekibi</strong></p>
+            
+            <p>Bu bildirimi iptal etmek istiyorsanız:  <a href="$webUrl/settings/notifications?token=$token">Bildirimleri İptal Et</p>
+        </div>
+        <div class="footer">
+            <p>
+                UYARI: Bu epostaya lütfen cevap vermeyiniz. Herhangi bir sorun, görüş, öneri veya şikayetiniz için 
+                <a href="https://www.takipon.com">TakipOn web sitemizden</a> iletişim formunu kullanabilirsiniz.
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
+

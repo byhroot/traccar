@@ -1,0 +1,14 @@
+#set($subject = "⛽ $device.name: Yakıt Dolumu")
+#set($digest = "$device.name fuel increase at $dateTool.format('yyyy-MM-dd HH:mm:ss', $event.eventTime, $locale, $timezone)")
+<!DOCTYPE html>
+<html>
+<body>
+Araç: $device.name<br>
+Zaman: $dateTool.format('yyyy-MM-dd HH:mm:ss', $event.eventTime, $locale, $timezone)<br>
+Miktar- Öncesi: $event.attributes.before<br>
+Miktar- Sonrası: $event.attributes.after<br>
+Konum: <a href="$webUrl/event/$event.id">#{if}($position.address)$position.address#{else}$position.latitude&deg;, $position.longitude&deg;#{end}</a><br>
+<br>
+<a href="$webUrl/settings/notifications?token=$token">Unsubscribe</a>
+</body>
+</html>

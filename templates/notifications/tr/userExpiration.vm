@@ -1,0 +1,11 @@
+#set($subject = "Hesap Geçerlilik Süresi Uyarısı")
+#set($digest = "Hesabınızı Geçerlilik Süresi Sona Ermiştir.")
+<!DOCTYPE html>
+<html>
+<body>
+Hesabınızın süresi dolmuştur. Kullanıma devam etmek için Lütfen Müşteri desteği ile iletişime geçiniz.
+<br>
+UYARI: Bu epostaya lütfen cevap vermeyiniz, Herhangi bir sorun görüş öneri veya şikayetiniz için 
+<a href=www.takipon.com>TakipOn web sitemizden</a><br> İletişim Formunu kullanmayı unutmayınız.
+</body>
+</html>

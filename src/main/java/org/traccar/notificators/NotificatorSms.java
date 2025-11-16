@@ -18,7 +18,11 @@ package org.traccar.notificators;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.traccar.database.StatisticsManager;
+import org.traccar.helper.LogAction;
 import org.traccar.model.Event;
 import org.traccar.model.Position;
 import org.traccar.model.User;
@@ -26,27 +30,80 @@ import org.traccar.notification.MessageException;
 import org.traccar.notification.NotificationFormatter;
 import org.traccar.notification.NotificationMessage;
 import org.traccar.sms.SmsManager;
+import org.traccar.storage.Storage;
+import org.traccar.storage.StorageException;
+import org.traccar.storage.query.Condition;
+import org.traccar.storage.query.Request;
+import org.traccar.storage.query.Columns;
+
 
 @Singleton
 public class NotificatorSms extends Notificator {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NotificatorSms.class);
 
     private final SmsManager smsManager;
     private final StatisticsManager statisticsManager;
+    private final Storage storage;
 
     @Inject
     public NotificatorSms(
-            SmsManager smsManager, NotificationFormatter notificationFormatter, StatisticsManager statisticsManager) {
+            SmsManager smsManager, NotificationFormatter notificationFormatter, StatisticsManager statisticsManager, Storage storage) {
         super(notificationFormatter);
         this.smsManager = smsManager;
         this.statisticsManager = statisticsManager;
+        this.storage = storage;
+
     }
+    
+    @Inject
+    private LogAction actionLogger;
 
     @Override
     public void send(User user, NotificationMessage message, Event event, Position position) throws MessageException {
         if (user.getPhone() != null) {
-            statisticsManager.registerSms();
-            smsManager.sendMessage(user.getPhone(), message.digest(), false);
+            // SMS limit kontrolü
+            if (user.hasAttribute("smsLimit")) {
+                int smsLimit = user.getInteger("smsLimit");  // smsLimit doğrudan sayı olarak alınıyor
+                if (smsLimit > 0) {
+                                    // Mesajın uzunluğunu kontrol et
+                    int messageLength = message.digest().length();
+                    // 150 karakter için 1 SMS hesapla
+                    int smsNeeded = (int) Math.ceil(messageLength / 150.0);
+                    
+                    if (smsLimit > smsNeeded) {
+                        statisticsManager.registerSms();
+                        smsManager.sendMessage(user.getPhone(), message.digest(), false);
+
+                    // SMS limitini güncelleme
+                    try {
+                        user.set("smsLimit", smsLimit - smsNeeded);
+                        // Güncellenmiş kullanıcıyı veritabanına kaydet
+                        storage.updateObject(user, new Request(
+                                new Columns.Include("attributes"), // attributes içinde güncelleme yapıyoruz
+                                new Condition.Equals("id", user.getId())));
+                    } catch (StorageException e) {
+                        throw new MessageException("Hata Oluştu - Error updating SMS limit: " + e.getMessage());
+                    }
+                    //userlogs.saveToDatabase(user.getId(), "SMS Gönderildi " +  " Tel: " + user.getPhone() + " User:" + user.getName());
+
+                    try {
+                    actionLogger.other(null, user.getId(), "notification", "sms", smsNeeded, "Kalan Limit: " + String.valueOf(smsLimit - smsNeeded), null);
+                    } catch (Exception e){
+                        LOGGER.info("SMS DB loglama hatası oldu",e);
+                    }
+
+                } else {
+                
+                    throw new MessageException("SMS Limit Yetersiz - SMS limit exceeded");
+                }
+            } else {
+                
+                throw new MessageException("SMS Limit Yetersiz - SMS limit exceeded");
+            }
+        } else {
+            throw new MessageException("SMS Aktif Değil - SMS limit attribute not found");
         }
+    }
     }
 
 }

@@ -22,6 +22,7 @@ import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.traccar.helper.LogAction;
 import org.traccar.helper.model.PositionUtil;
 import org.traccar.model.Device;
 import org.traccar.model.Event;
@@ -69,6 +70,21 @@ public class AsyncSocket implements Session.Listener.AutoDemanding, ConnectionMa
             data.put(KEY_POSITIONS, PositionUtil.getLatestPositions(storage, userId));
             sendData(data);
             connectionManager.addListener(userId, this);
+            // takıp on kullanıcı giriş loglama
+            List<String> forwardedForHeaders = session.getUpgradeRequest().getHeaders().get("X-Forwarded-For");
+            String remoteAddress = (forwardedForHeaders != null && !forwardedForHeaders.isEmpty())
+                    ? forwardedForHeaders.get(0)
+                    : session.getRemoteSocketAddress() != null
+                        ? session.getRemoteSocketAddress().toString()
+                        : "...";
+
+            try {
+                LogAction logAction = new LogAction(storage);
+                logAction.socketlogin(remoteAddress, userId);
+            } catch (Exception e) {
+                LOGGER.warn("Socket login loglama hatası", e);
+            }
+
         } catch (StorageException e) {
             throw new RuntimeException(e);
         }

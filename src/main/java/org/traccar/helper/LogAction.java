@@ -21,6 +21,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,6 +56,7 @@ public final class LogAction {
     private static final String ACTION_UNLINK = "unlink";
 
     private static final String ACTION_LOGIN = "login";
+    private static final String ACTION_SOCKET_LOGIN = "socketlogin";
     private static final String ACTION_LOGOUT = "logout";
     private static final String ACTION_DENIED = "denied";
 
@@ -87,6 +89,9 @@ public final class LogAction {
     public void login(HttpServletRequest request, long userId) {
         logLoginAction(request, ACTION_LOGIN, userId);
     }
+    public void socketlogin(String remoteAddress , long userId) {
+        logSocketLoginAction(remoteAddress, ACTION_SOCKET_LOGIN, userId);
+    }
 
     public void logout(HttpServletRequest request, long userId) {
         logLoginAction(request, ACTION_LOGOUT, userId);
@@ -113,11 +118,15 @@ public final class LogAction {
         storeAction(action);
     }
 
-    public void command(HttpServletRequest request, long userId, long groupId, long deviceId, String type) {
+    public void command(HttpServletRequest request, long userId, long groupId, long deviceId, String type, String description, String attributesJson) {
         Action action = new Action();
         action.setAddress(WebHelper.retrieveRemoteAddress(request));
         action.setUserId(userId);
         action.setActionType(ACTION_COMMAND);
+        action.set("type", type);
+        action.set("description", description);
+        action.set("attributes", attributesJson);
+
         if (groupId > 0) {
             action.setObjectType(Introspector.decapitalize(Group.class.getSimpleName()));
             action.setObjectId(groupId);
@@ -179,6 +188,26 @@ public final class LogAction {
         storeAction(action);
     }
 
+    private void logSocketLoginAction(
+            String remoteAddress, String actionType, long userId) {
+        Action action = new Action();
+        action.setAddress(remoteAddress != null ? remoteAddress : "...");
+        action.setUserId(userId);
+        action.setActionType(actionType);
+        storeAction(action);
+    }
+
+    public void other(HttpServletRequest request, long userId, String actionType , String objectType, long propertyId, String description1, String description2) {
+        Action action = new Action();
+        action.setAddress(WebHelper.retrieveRemoteAddress(request));
+        action.setUserId(userId);
+        action.setActionType(actionType);
+        action.setObjectType(objectType);
+        action.setObjectId(propertyId);
+        action.set("desc1", description1);
+        action.set("desc2", description2);
+        storeAction(action);
+    }
     private void storeAction(Action action) {
         try {
             storage.addObject(action, new Request(new Columns.Exclude("id")));

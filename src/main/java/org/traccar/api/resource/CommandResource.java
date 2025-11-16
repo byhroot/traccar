@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Path("commands")
 @Produces(MediaType.APPLICATION_JSON)
@@ -154,7 +155,12 @@ public class CommandResource extends ExtendedObjectResource<Command> {
             }
         }
 
-        actionLogger.command(request, getUserId(), groupId, entity.getDeviceId(), entity.getType());
+        Map<String, Object> attributes = entity.getAttributes();
+        String attributesString = attributes != null ? attributes.toString() : "";
+        actionLogger.command(request, getUserId(), groupId, entity.getDeviceId(),
+                entity.getType(), entity.getDescription(), attributesString);
+
+        actionLogger.command(request, getUserId(), groupId, entity.getDeviceId(), entity.getType(), entity.getDescription(), attributesString);
         return Response.ok(entity).build();
     }
 

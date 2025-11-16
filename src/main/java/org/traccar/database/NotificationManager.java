@@ -116,7 +116,7 @@ public class NotificationManager {
                 .toList();
 
         Device device = cacheManager.getObject(Device.class, event.getDeviceId());
-        LOGGER.info(
+        LOGGER.debug(
                 "Event id: {}, time: {}, type: {}, notifications: {}",
                 device.getUniqueId(),
                 DateUtil.formatDate(event.getEventTime(), false),

@@ -1,0 +1,16 @@
+#set($subject = "Hesap süresi doluyor")
+#set($digest = "$dateTool.format('dd-MM-yyyy', $expiration, $locale, $timezone) Tarihinde Sonlanacaktır.")
+<!DOCTYPE html>
+<html>
+<body>
+Hesabınızın geçerlilik süresi belirtilen tarihte sonlanacaktır. :  $dateTool.format("dd-MM-yyyy", $expiration, $locale, $timezone).
+<br>
+<br>
+Herhangi bir sorunuz veya desteğe ihtiyacınız varsa lütfen bize ulaşın.
+Sevgilerle, TakipOn Ekibi.
+<br>
+<br>
+UYARI: Bu epostaya lütfen cevap vermeyiniz, Herhangi bir sorun görüş öneri veya şikayetiniz için 
+<a href=www.takipon.com>TakipOn web sitemizden</a><br> İletişim Formunu kullanmayı unutmayınız.
+</body>
+</html>

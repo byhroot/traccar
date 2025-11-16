@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 @Singleton
 public class LocaleManager {
 
-    private static final String DEFAULT_LANGUAGE = "en";
+    private static final String DEFAULT_LANGUAGE = "tr";
 
     private final Path path;
     private final ObjectMapper objectMapper;

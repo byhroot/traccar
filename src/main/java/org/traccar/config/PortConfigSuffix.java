@@ -272,7 +272,7 @@ public class PortConfigSuffix extends ConfigSuffix<Integer> {
         PORTS.put("transync", 5247);
         PORTS.put("t622iridium", 5248);
         PORTS.put("pui", 5249);
-        PORTS.put("nto", 5250);
+        PORTS.put("nto", 5271);
         PORTS.put("ramac", 5251);
         PORTS.put("positrex", 5252);
         PORTS.put("dragino", 5253);
@@ -282,7 +282,9 @@ public class PortConfigSuffix extends ConfigSuffix<Integer> {
         PORTS.put("gl601", 5257);
         PORTS.put("hyn600", 5258);
         PORTS.put("jmak", 5259);
-        PORTS.put("bws", 5260);
+        PORTS.put("bws", 5272);
+        PORTS.put("takipon", 5250);
+        PORTS.put("takiponalong", 5260);
     }
 
     PortConfigSuffix(String key, List<KeyType> types) {

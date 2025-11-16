@@ -1,0 +1,17 @@
+#set($subject = "🔄 Komut Başarılı")
+#set($digest = "$device.name Komut Başarılı: $position.getString('result') at $dateTool.format('dd-MM-yyyy HH:mm:ss', $event.eventTime, $locale, $timezone)")
+<!DOCTYPE html>
+<html>
+<body>
+Device: $device.name<br>
+Result: $position.getString('result')<br>
+Time: $dateTool.format('yyyy-MM-dd HH:mm:ss', $event.eventTime, $locale, $timezone)<br>
+Link: <a href="$webUrl/event/$event.id">$webUrl/event/$event.id</a><br>
+<br>
+<br>
+UYARI: Bu epostaya lütfen cevap vermeyiniz, Herhangi bir sorun görüş öneri veya şikayetiniz için 
+<a href=www.takipon.com>TakipOn web sitemizden</a><br> İletişim Formunu kullanmayı unutmayınız.
+
+<a href="$webUrl/settings/notifications?token=$token">Unsubscribe</a>
+</body>
+</html>

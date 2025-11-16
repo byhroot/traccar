@@ -84,6 +84,12 @@ public class NotificatorFirebase extends Notificator {
     @Override
     public void send(User user, NotificationMessage message, Event event, Position position) throws MessageException {
         if (user.hasAttribute("notificationTokens")) {
+            //takipon ios sesleri
+            String iosSound = "default";
+            if (user.hasAttribute("notificationSound")) {
+                String notificationSound = user.getString("notificationSound");
+                iosSound = notificationSound + ".caf";
+            }
 
             List<String> registrationTokens = new ArrayList<>(
                     Arrays.asList(user.getString("notificationTokens").split("[, ]")));
@@ -91,8 +97,11 @@ public class NotificatorFirebase extends Notificator {
             var androidConfig = AndroidConfig.builder()
                     .setNotification(AndroidNotification.builder().setSound("default").build());
 
+            // 🔹 iOS (APNs) yapılandırması
             var apnsConfig = ApnsConfig.builder()
-                    .setAps(Aps.builder().setSound("default").build());
+                    .setAps(Aps.builder()
+                            .setSound(iosSound)
+                            .build());
 
             if (message.priority()) {
                 androidConfig.setPriority(AndroidConfig.Priority.HIGH);
