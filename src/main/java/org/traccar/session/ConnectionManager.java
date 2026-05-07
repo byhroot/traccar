@@ -68,7 +68,7 @@ public class ConnectionManager implements BroadcastInterface {
     private final Map<Long, DeviceSession> sessionsByDeviceId = new ConcurrentHashMap<>();
     private final Map<ConnectionKey, Map<String, DeviceSession>> sessionsByEndpoint = new ConcurrentHashMap<>();
     private final Map<ConnectionKey, String> unknownByEndpoint = new ConcurrentHashMap<>();
-
+    private final Map<Long, Timeout> notificationTimeouts = new ConcurrentHashMap<>();
     private final Config config;
     private final CacheManager cacheManager;
     private final Storage storage;
@@ -248,7 +248,41 @@ public class ConnectionManager implements BroadcastInterface {
                 default -> Event.TYPE_DEVICE_OFFLINE;
             };
             events.put(new Event(eventType, deviceId), null);
-            notificationManager.updateEvents(events);
+            try {
+                // Her durum değişiminde (Online/Offline/Unknown) bekleyen önceki tüm timer'ları
+                // iptal et
+                Timeout pendingTimeout = notificationTimeouts.remove(deviceId);
+                if (pendingTimeout != null) {
+                    pendingTimeout.cancel();
+                }
+
+                if (status.equals(Device.STATUS_ONLINE)) {
+                    if (pendingTimeout != null) {
+                        // DURUM 1: Cihaz 10 dk dolmadan geri geldi!
+                        // Hem offline timer'ını iptal ettik (yukarıda), hem de online bildirimini
+                        // göndermiyoruz.
+                        LOGGER.info("[{}] cihaz kısa sürede geri geldi, tüm bildirimler susturuldu.", deviceId);
+                    } else {
+                        // DURUM 2: Cihaz gerçekten uzun süredir kapalıydı ve şimdi açıldı.
+                        // Bekleyen bir timer yoktu, o yüzden bu gerçek bir Online bildirimidir.
+                        notificationManager.updateEvents(events);
+                    }
+                } else {
+                    // DURUM 3: Cihaz Offline veya Unknown oldu.
+                    // Hemen bildirim gönderme, 10 dakikalık "karar süresi" başlat.
+                    notificationTimeouts.put(deviceId, timer.newTimeout(t -> {
+                        if (!t.isCancelled()) {
+                            notificationTimeouts.remove(deviceId);
+                            notificationManager.updateEvents(events);
+                            LOGGER.info("[{}] cihaz 10 dakikadır kapalı, offline bildirimi gönderildi.", deviceId);
+                        }
+                    }, 600, TimeUnit.SECONDS));
+                }
+            } catch (Exception e) {
+                LOGGER.error("Bildirim yönetim hatası", e);
+                notificationManager.updateEvents(events);
+            }
+            // --- BİLDİRİM GECİKTİRME KURALI BİTİŞİ ---
         }
 
         if (time != null) {
@@ -365,9 +399,13 @@ public class ConnectionManager implements BroadcastInterface {
 
     public interface UpdateListener {
         void onKeepalive();
+
         void onUpdateDevice(Device device);
+
         void onUpdatePosition(Position position);
+
         void onUpdateEvent(Event event);
+
         void onUpdateLog(LogRecord record);
     }
 

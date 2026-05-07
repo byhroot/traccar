@@ -26,6 +26,7 @@ import org.traccar.geocoder.Geocoder;
 import org.traccar.helper.DateUtil;
 import org.traccar.model.Calendar;
 import org.traccar.model.Device;
+import org.traccar.model.Driver;
 import org.traccar.model.Event;
 import org.traccar.model.Geofence;
 import org.traccar.model.Maintenance;
@@ -134,6 +135,37 @@ public class NotificationManager {
                         LOGGER.info("User {} notification blocked", user.getId());
                         return;
                     }
+
+                    if (event.getGeofenceId() != 0) {
+                        boolean has = cacheManager.userHasObject(user.getId(), Geofence.class, event.getGeofenceId());
+                        // LOGGER.warn(" geofenceId: {}, userHasGeofence: {}", event.getGeofenceId(),
+                        // has);
+                        // RETURN VAR MI? Olmalı:
+                        if (!has)
+                            return;
+                    }
+                    if (event.getMaintenanceId() != 0) {
+                        boolean has = cacheManager.userHasObject(user.getId(), Maintenance.class,
+                                event.getMaintenanceId());
+                        // LOGGER.warn(" maintenanceId: {}, userHasMaintenance: {}",
+                        // event.getMaintenanceId(), has);
+                        if (!has)
+                            return;
+                    }
+                    if (event.getType().equals(Event.TYPE_DRIVER_CHANGED)) {
+                        String driverUniqueId = event.getString(Position.KEY_DRIVER_UNIQUE_ID);
+                        if (driverUniqueId != null && !driverUniqueId.isEmpty()) {
+                            boolean hasDriver = cacheManager.getDeviceObjects(event.getDeviceId(), Driver.class)
+                                    .stream()
+                                    .filter(d -> d.getUniqueId().equals(driverUniqueId))
+                                    .anyMatch(d -> cacheManager.userHasObject(user.getId(), Driver.class, d.getId()));
+                            // LOGGER.warn(" driverUniqueId: {}, userHasDriver: {}", driverUniqueId,
+                            // hasDriver);
+                            if (!hasDriver)
+                                return;
+                        }
+                    }
+                    // normal akış devam ediyor
                     for (String notificator : notification.getNotificatorsTypes()) {
                         try {
                             notificatorManager.getNotificator(notificator).send(notification, user, event, position);

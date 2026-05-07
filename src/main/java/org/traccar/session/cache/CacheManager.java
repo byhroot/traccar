@@ -56,8 +56,8 @@ public class CacheManager implements BroadcastInterface {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CacheManager.class);
 
-    private static final Set<Class<? extends BaseModel>> GROUPED_CLASSES =
-            Set.of(Attribute.class, Driver.class, Geofence.class, Maintenance.class, Notification.class);
+    private static final Set<Class<? extends BaseModel>> GROUPED_CLASSES = Set.of(Attribute.class, Driver.class,
+            Geofence.class, Maintenance.class, Notification.class);
 
     private final Config config;
     private final Storage storage;
@@ -76,6 +76,11 @@ public class CacheManager implements BroadcastInterface {
         this.broadcastService = broadcastService;
         server = storage.getObject(Server.class, new Request(new Columns.All()));
         broadcastService.registerListener(this);
+    }
+
+    public boolean userHasObject(long userId, Class<? extends BaseModel> clazz, long objectId) {
+        return graph.getObjects(User.class, userId, clazz, Set.of(), true) // true!
+                .anyMatch(obj -> obj.getId() == objectId);
     }
 
     @Override
@@ -237,8 +242,13 @@ public class CacheManager implements BroadcastInterface {
 
         boolean groupLink = GroupedModel.class.isAssignableFrom(fromClass) && toClass.equals(Group.class);
         boolean calendarLink = Schedulable.class.isAssignableFrom(fromClass) && toClass.equals(Calendar.class);
-        boolean userLink = fromClass.equals(User.class) && toClass.equals(Notification.class);
-
+        // BURAYI GÜNCELLEDİK: Sadece Notification değil, diğer sınıfları da kabul
+        // etmeli
+        boolean userLink = fromClass.equals(User.class) &&
+                (toClass.equals(Notification.class) ||
+                        toClass.equals(Geofence.class) ||
+                        toClass.equals(Maintenance.class) ||
+                        toClass.equals(Driver.class));
         boolean groupedLinks = GroupedModel.class.isAssignableFrom(fromClass)
                 && (GROUPED_CLASSES.contains(toClass) || toClass.equals(User.class));
 
@@ -264,6 +274,20 @@ public class CacheManager implements BroadcastInterface {
                             permission.getPropertyClass(), permission.getPropertyId(), true);
                 }
             }
+            // YENİ - direkt graph'a yazdık, Geofence, Maintenance, Driver gibi sınıflar
+            // için de Cacheye ekleyelim, böylece userHasObject metodunu kullanarak
+            // erişebiliriz
+            for (Class<? extends BaseModel> clazz : Set.of(Geofence.class, Maintenance.class, Driver.class)) {
+                for (Permission permission : storage.getPermissions(User.class, clazz)) {
+                    if (permission.getOwnerId() == object.getId()) {
+                        graph.addLink(
+                                User.class, object.getId(),
+                                clazz, permission.getPropertyId(),
+                                createObjectSupplier(clazz, permission.getPropertyId()));
+                    }
+                }
+            }
+
         } else {
             if (object instanceof GroupedModel groupedModel) {
                 long groupId = groupedModel.getGroupId();

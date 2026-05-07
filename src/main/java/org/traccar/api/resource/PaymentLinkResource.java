@@ -38,7 +38,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-
 @Path("paylinks")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -52,12 +51,11 @@ public class PaymentLinkResource extends BaseResource {
     private final StatisticsManager statisticsManager;
     private final MailManager mailManager;
 
-
     private final String API_KEY;
     private final String SITE_ID;
     private final int YILLIKPRICE;
     private final int PROPRICE;
-        
+
     @Inject
     private NotificatorManager notificatorManager;
 
@@ -67,7 +65,7 @@ public class PaymentLinkResource extends BaseResource {
             logger.info("PaymentRequest {} zaten işlenmiş, atlanıyor.", request.getId());
             return;
         }
-    
+
         // Wix'ten status sorgula
         try {
             String url = "https://www.wixapis.com/payment-links/v1/payment-links/" + request.getPaylinkId();
@@ -76,34 +74,32 @@ public class PaymentLinkResource extends BaseResource {
                     .header("Authorization", "Bearer " + API_KEY)
                     .header("wix-site-id", SITE_ID)
                     .get();
-    
+
             if (response.getStatus() == Response.Status.OK.getStatusCode()) {
                 String resp = response.readEntity(String.class);
                 response.close();
-    
+
                 org.json.JSONObject obj = new org.json.JSONObject(resp);
                 String status = obj.getJSONObject("paymentLink").getString("status");
-    
+
                 // Sadece PAID ise işlem yap
                 if ("PAID".equalsIgnoreCase(status)) {
                     request.setStatus("PAID");
                     request.setUpdatedAt(new Date());
                     storage.updateObject(request, new Request(
                             new Columns.Include("status", "updatedAt"),
-                            new Condition.Equals("id", request.getId())
-                    ));
-    
+                            new Condition.Equals("id", request.getId())));
+
                     // Cihazları güncelle
                     updateDevicesExpiration(request);
-    
+
                     // PaymentRequest’i processed yap
                     request.setProcessed(true);
                     request.setActive(false);
                     request.setUpdatedAt(new Date());
                     storage.updateObject(request, new Request(
                             new Columns.Include("status", "active", "processed", "updatedAt"),
-                            new Condition.Equals("id", request.getId())
-                    ));
+                            new Condition.Equals("id", request.getId())));
                     logger.info("PaymentRequest {} PAID olarak işlendi.", request.getId());
                 } else {
                     // PAID değilse sadece status güncellenebilir
@@ -111,14 +107,12 @@ public class PaymentLinkResource extends BaseResource {
                     request.setUpdatedAt(new Date());
                     storage.updateObject(request, new Request(
                             new Columns.Include("status", "updatedAt"),
-                            new Condition.Equals("id", request.getId())
-                    ));
+                            new Condition.Equals("id", request.getId())));
                     User currentUser = permissionsService.getUser(getUserId());
 
                     NotificationMessage message = new NotificationMessage(
-                        "Link Ödemeniz Bekliyor..","Cihaz Tarihleri Güncellenmedi.",
-                        "Cihaz Tarihleri Güncellenmedi.",true
-                    );
+                            "Link Ödemeniz Bekliyor..", "Cihaz Tarihleri Güncellenmedi.",
+                            "Cihaz Tarihleri Güncellenmedi.", true);
                     notificatorManager.getNotificator("firebase").send(currentUser, message, null, null);
                     logger.info("PaymentRequest {} henüz ödenmemiş. Status güncellendi: {}", request.getId(), status);
                 }
@@ -131,14 +125,14 @@ public class PaymentLinkResource extends BaseResource {
             throw new StorageException("Durum sorgulama hatası: " + e.getMessage(), e);
         }
     }
-    
+
     // Device expiration ve notification güncellemesini ayrı metod yaptık
     private void updateDevicesExpiration(PaymentRequest request) throws StorageException {
         User currentUser = permissionsService.getUser(request.getUserid());
         if (currentUser == null) {
             throw new StorageException("User not found for PaymentRequest " + request.getId());
         }
-    
+
         List<Long> deviceIds = new ArrayList<>();
         if (request.getDevices() != null && !request.getDevices().isEmpty()) {
             String devicesStr = request.getDevices().replaceAll("[{}\\s]", "");
@@ -150,18 +144,17 @@ public class PaymentLinkResource extends BaseResource {
                 }
             }
         }
-    
+
         Date now = new Date();
         for (Long deviceId : deviceIds) {
             Device device = storage.getObject(Device.class, new Request(
                     new Columns.All(),
-                    new Condition.Equals("id", deviceId)
-            ));
+                    new Condition.Equals("id", deviceId)));
             if (device != null) {
                 Date currentExp = device.getExpirationTime();
                 Calendar cal = Calendar.getInstance();
                 boolean shouldUpdate = false;
-    
+
                 if (currentExp == null || currentExp.before(now)) {
                     shouldUpdate = true;
                     cal.setTime(now);
@@ -175,50 +168,49 @@ public class PaymentLinkResource extends BaseResource {
                         cal.setTime(currentExp);
                     }
                 }
-    
+
                 if (shouldUpdate) {
                     cal.add(Calendar.YEAR, 1);
                     Date newExp = cal.getTime();
                     device.setExpirationTime(newExp);
                     storage.updateObject(device, new Request(
                             new Columns.Include("expirationTime"),
-                            new Condition.Equals("id", deviceId)
-                    ));
-    
+                            new Condition.Equals("id", deviceId)));
+
                     // Notification gönder
                     try {
                         NotificationMessage message = new NotificationMessage(
-                                "Ödeme Tamamlandı","",
-                                "Cihaz Tarihleri Güncellendi.",true
-                        );
+                                "Ödeme Tamamlandı", "",
+                                "Cihaz Tarihleri Güncellendi.", true);
                         notificatorManager.getNotificator("firebase").send(currentUser, message, null, null);
                     } catch (Exception e) {
                         logger.warn("Notification gönderilemedi: {}", e.getMessage());
                     }
-    
+
                     logger.info("Device {} expiration güncellendi -> {} -> {}", deviceId, currentExp, newExp);
                 } else {
-                    logger.info("Device {} expiration 30 günden fazla, güncelleme yapılmadı -> {}", deviceId, currentExp);
+                    logger.info("Device {} expiration 30 günden fazla, güncelleme yapılmadı -> {}", deviceId,
+                            currentExp);
                 }
             }
         }
     }
-    
-    
+
     @Inject
-    public PaymentLinkResource(Config config, Storage storage, Client client, SmsManager smsManager, StatisticsManager statisticsManager, MailManager mailManager) {
+    public PaymentLinkResource(Config config, Storage storage, Client client, SmsManager smsManager,
+            StatisticsManager statisticsManager, MailManager mailManager) {
         this.storage = storage;
         this.client = client;
         this.smsManager = smsManager;
         this.statisticsManager = statisticsManager;
         this.mailManager = mailManager;
-    
+
         // Config üzerinden gerçek değerleri alıyoruz
         this.API_KEY = config.getString(Keys.PAYLINK_APIKEY);
         this.SITE_ID = config.getString(Keys.PAYLINK_SITEID);
         this.YILLIKPRICE = config.getInteger(Keys.PAYLINK_YILLIKPRICE);
         this.PROPRICE = config.getInteger(Keys.PAYLINK_PROFARKPRICE);
-        
+
     }
 
     @POST
@@ -243,8 +235,8 @@ public class PaymentLinkResource extends BaseResource {
             // Device ID’lerini string olarak devices alanına set et
             if (deviceIds != null && !deviceIds.isEmpty()) {
                 request.setDevices("{" + deviceIds.stream()
-                                                .map(String::valueOf)
-                                                .collect(Collectors.joining(",")) + "}");
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(",")) + "}");
             } else {
                 request.setDevices("{}");
             }
@@ -253,10 +245,9 @@ public class PaymentLinkResource extends BaseResource {
             } else {
                 request.setPackageName("{}");
             }
-            
 
-            //logger.info("Device IDs: {}", deviceIds);
-            //logger.info("Paket info: {}", paket);
+            // logger.info("Device IDs: {}", deviceIds);
+            // logger.info("Paket info: {}", paket);
 
             int totalAmount = 0;
             List<org.json.JSONObject> lineItems = new ArrayList<>();
@@ -266,9 +257,8 @@ public class PaymentLinkResource extends BaseResource {
             // Device bilgilerini lineItems'a ekle
             for (Long deviceId : deviceIds) {
                 Device device = storage.getObject(Device.class, new Request(
-                    new Columns.All(),
-                    new Condition.Equals("id", deviceId)
-                ));
+                        new Columns.All(),
+                        new Condition.Equals("id", deviceId)));
                 if (device != null) {
                     noteBuilder.append(device.getName()).append(", ");
                     org.json.JSONObject item = new org.json.JSONObject();
@@ -318,11 +308,41 @@ public class PaymentLinkResource extends BaseResource {
                 totalAmount += paket.get("pro") * PROPRICE;
             }
 
+            // ✅ BURAYA - totalAmount artık tam, noteBuilder henüz bitmedi
+            int discountAmount = 0;
+            try {
+                String contactId = getWixContactId(currentUser.getEmail());
+                int loyaltyPoints = getWixLoyaltyBalance(contactId);
+                discountAmount = Math.min(loyaltyPoints / 10, totalAmount);
+                totalAmount -= discountAmount;
+                logger.info("Loyalty indirimi uygulandı: {} TL ({} puan)", discountAmount, discountAmount * 10);
+
+                if (discountAmount > 0) {
+                    resetLoyaltyPoints(contactId); // ✅ puan sıfırla
+                }
+            } catch (Exception e) {
+                logger.warn("Loyalty indirimi alınamadı, indirimsiz devam: {}", e.getMessage());
+            }
+            // 👇 BURAYA EKLE - discount sonrası lineItems fiyatlarını güncelle
+            if (discountAmount > 0) {
+                int remaining = discountAmount;
+                for (int i = lineItems.size() - 1; i >= 0 && remaining > 0; i--) {
+                    org.json.JSONObject ci = lineItems.get(i).getJSONObject("customItem");
+                    int itemPrice = ci.getInt("price");
+                    int deduct = Math.min(itemPrice - 1, remaining); // minimum 1 TL kalmalı (gt:0)
+                    ci.put("price", itemPrice - deduct);
+                    remaining -= deduct;
+                }
+            }
+
             // Son virgülü kaldır
             if (noteBuilder.length() > 2) {
                 noteBuilder.setLength(noteBuilder.length() - 2);
             }
-
+            // ✅ BU SATIR EKSİK - ekle
+            if (discountAmount > 0) {
+                noteBuilder.append(" | Puan İndirimi: -").append(discountAmount).append(" TL");
+            }
             // Wix payload objesi
             org.json.JSONObject payload = new org.json.JSONObject();
             org.json.JSONObject paymentLink = new org.json.JSONObject();
@@ -332,6 +352,7 @@ public class PaymentLinkResource extends BaseResource {
             paymentLink.put("expirationDate", expiration);
             paymentLink.put("paymentsLimit", "1"); // string olarak
             paymentLink.put("type", "ECOM");
+
             paymentLink.put("price", String.valueOf(totalAmount)); // string olarak
 
             org.json.JSONObject ecomPaymentLink = new org.json.JSONObject();
@@ -348,7 +369,7 @@ public class PaymentLinkResource extends BaseResource {
 
             payload.put("paymentLink", paymentLink);
 
-            //logger.info("Wix payload: {}", payload.toString());
+            // logger.info("Wix payload: {}", payload.toString());
 
             Response response = client.target("https://www.wixapis.com/payment-links/v1/payment-links")
                     .request()
@@ -358,13 +379,13 @@ public class PaymentLinkResource extends BaseResource {
                     .header("wix-site-id", SITE_ID)
                     .post(Entity.json(payload.toString()));
 
-            //logger.info("Wix response status: {}", response.getStatus());
+            // logger.info("Wix response status: {}", response.getStatus());
 
             if (response.getStatus() == Response.Status.OK.getStatusCode()) {
                 String resp = response.readEntity(String.class);
                 response.close();
 
-                //logger.info("Wix response body: {}", resp);
+                // logger.info("Wix response body: {}", resp);
                 org.json.JSONObject obj = new org.json.JSONObject(resp);
                 org.json.JSONObject paymentLinkObj = obj.getJSONObject("paymentLink");
 
@@ -379,36 +400,33 @@ public class PaymentLinkResource extends BaseResource {
                 request.setCreatedAt(new Date());
                 request.setUpdatedAt(new Date());
                 request.setTotalAmount(totalAmount);
-                
 
                 // User ID’yi request objesine set ediyoruz
                 request.setUserid(currentUser.getId());
-                
 
                 // Veritabanına kaydet
                 request.setId(storage.addObject(
-                    request,
-                    new Request(new Columns.Exclude("id", "deviceIds", "paket", "attributes"))
-                ));
-                
+                        request,
+                        new Request(new Columns.Exclude("id", "deviceIds", "paket", "attributes"))));
+
                 // SMS gönderimi
                 if (currentUser.getPhone() != null && !currentUser.getPhone().isEmpty()) {
-                    String smsMessage = "Ödeme linkiniz: " + paylinkUrl;
+                    String smsMessage = "Guvenli Odeme linkiniz: " + paylinkUrl;
                     statisticsManager.registerSms();
                     smsManager.sendMessage(currentUser.getPhone(), smsMessage, false);
                 }
                 String mailSubject = "TakipOn | Ödeme linkiniz ";
-                
+
                 StringBuilder mailBodyBuilder = new StringBuilder();
                 mailBodyBuilder.append("Sayın ").append(currentUser.getName()).append(",\n\n")
-                    .append("Siparişiniz başarıyla oluşturulmuştur. Detayları aşağıda bulabilirsiniz:\n\n")
-                    .append("📌 Seçilen Araçlar / Paketler:\n")
-                    .append(noteBuilder.toString()).append("\n\n")
-                    .append("💰 Toplam Tutar: ").append(totalAmount).append(" TL\n\n")
-                    .append("Ödeme işleminizi aşağıdaki bağlantı üzerinden güvenle gerçekleştirebilirsiniz:\n")
-                    .append(paylinkUrl).append("\n\n")
-                    .append("Sipariş sonrası aktivasyonlar 24 saat içerisinde otomatik gerçekleştirilecektir. Teşekkür eder, iyi günler dileriz.\n")
-                    .append("TakipOn Ekibi");
+                        .append("Siparişiniz başarıyla oluşturulmuştur. Detayları aşağıda bulabilirsiniz:\n\n")
+                        .append("📌 Seçilen Araçlar / Paketler:\n")
+                        .append(noteBuilder.toString()).append("\n\n")
+                        .append("💰 Toplam Tutar: ").append(totalAmount).append(" TL\n\n")
+                        .append("Ödeme işleminizi aşağıdaki bağlantı üzerinden güvenle gerçekleştirebilirsiniz:\n")
+                        .append(paylinkUrl).append("\n\n")
+                        .append("Sipariş sonrası aktivasyonlar 24 saat içerisinde otomatik gerçekleştirilecektir. Teşekkür eder, iyi günler dileriz.\n")
+                        .append("TakipOn Ekibi");
                 String mailBody = mailBodyBuilder.toString();
                 if (currentUser != null) {
                     try {
@@ -432,7 +450,7 @@ public class PaymentLinkResource extends BaseResource {
                         String subject = "Ödeme linkiniz oluşturuldu";
                         String body = "Link üzerinden ödemeyi tamamlayınız.";
 
-                        NotificationMessage message = new NotificationMessage(subject,"", body,true);
+                        NotificationMessage message = new NotificationMessage(subject, "", body, true);
                         // Örneğin firebase notificator
                         notificatorManager.getNotificator("firebase").send(currentUser, message, null, null);
                     } catch (Exception e) {
@@ -441,7 +459,6 @@ public class PaymentLinkResource extends BaseResource {
                 }
 
                 return request;
-
 
             } else {
                 String error = response.readEntity(String.class);
@@ -454,7 +471,7 @@ public class PaymentLinkResource extends BaseResource {
             logger.error("PaymentLink create error: ", e);
             throw new StorageException("Paylink oluşturma hatası: " + e.getMessage(), e);
         }
-                
+
     }
 
     /**
@@ -477,8 +494,7 @@ public class PaymentLinkResource extends BaseResource {
         return storage.getObjects(PaymentRequest.class, new Request(
                 new Columns.All(),
                 condition,
-                new Order("createdAt")
-        ));
+                new Order("createdAt")));
     }
 
     /**
@@ -488,9 +504,8 @@ public class PaymentLinkResource extends BaseResource {
     @Path("prices")
     public Map<String, Integer> getPrices() {
         return Map.of(
-            "yillikPrice", YILLIKPRICE,
-            "proPrice", PROPRICE
-        );
+                "yillikPrice", YILLIKPRICE,
+                "proPrice", PROPRICE);
     }
 
     /**
@@ -501,8 +516,7 @@ public class PaymentLinkResource extends BaseResource {
     public PaymentRequest get(@PathParam("id") long id) throws StorageException {
         PaymentRequest request = storage.getObject(PaymentRequest.class, new Request(
                 new Columns.All(),
-                new Condition.Equals("id", id)
-        ));
+                new Condition.Equals("id", id)));
 
         if (request == null) {
             throw new NotFoundException("Paylink bulunamadı");
@@ -516,13 +530,12 @@ public class PaymentLinkResource extends BaseResource {
      * Paylink status güncelle (Wix API üzerinden kontrol et)
      */
 
-     @PUT
+    @PUT
     @Path("{id}/status")
     public PaymentRequest updateStatus(@PathParam("id") long id) throws StorageException {
         PaymentRequest request = storage.getObject(PaymentRequest.class, new Request(
                 new Columns.All(),
-                new Condition.Equals("id", id)
-        ));
+                new Condition.Equals("id", id)));
 
         if (request == null) {
             throw new NotFoundException("Paylink bulunamadı");
@@ -549,14 +562,12 @@ public class PaymentLinkResource extends BaseResource {
                 request.setUpdatedAt(new Date());
                 storage.updateObject(request, new Request(
                         new Columns.Include("status", "updatedAt"),
-                        new Condition.Equals("id", request.getId())
-                ));
+                        new Condition.Equals("id", request.getId())));
 
                 if ("PAID".equalsIgnoreCase(status) && !request.isProcessed()) {
                     processPaidRequest(request);
 
                 }
-
 
                 return request;
             } else {
@@ -569,4 +580,169 @@ public class PaymentLinkResource extends BaseResource {
             throw new StorageException("Durum sorgulama hatası: " + e.getMessage(), e);
         }
     }
+
+    // PaymentLinkResource.java'ya eklenecek yeni metod ve create değişiklikleri
+
+    // ========================
+    // 1. YENİ: Loyalty bakiye sorgulama endpoint'i
+    // ========================
+
+    @GET
+    @Path("loyalty")
+    public Map<String, Object> getLoyaltyBalance() throws StorageException {
+        User currentUser = permissionsService.getUser(getUserId());
+        if (currentUser == null) {
+            throw new StorageException("Current user not found");
+        }
+
+        try {
+            // Adım 1: Email ile Contact ID bul
+            String contactId = getWixContactId(currentUser.getEmail());
+
+            // Adım 2: Contact ID ile bakiye sorgula
+            int balance = getWixLoyaltyBalance(contactId);
+
+            return Map.of(
+                    "points", balance,
+                    "discountTL", balance / 10 // 10 puan = 1 TL
+            );
+        } catch (Exception e) {
+            logger.warn("Loyalty bakiye alınamadı: {}", e.getMessage());
+            return Map.of("points", 0, "discountTL", 0);
+        }
+    }
+
+    // ========================
+    // 2. YARDIMCI: Wix Contact ID sorgula
+    // ========================
+
+    private String getWixContactId(String email) throws Exception {
+        org.json.JSONObject filter = new org.json.JSONObject()
+                .put("query", new org.json.JSONObject()
+                        .put("filter", new org.json.JSONObject()
+                                .put("info.emails.email", new org.json.JSONObject()
+                                        .put("$eq", email))));
+
+        Response response = client.target("https://www.wixapis.com/contacts/v4/contacts/query")
+                .request()
+                .header("Authorization", "Bearer " + API_KEY)
+                .header("wix-site-id", SITE_ID)
+                .header("Content-Type", "application/json")
+                .post(Entity.json(filter.toString()));
+
+        String resp = response.readEntity(String.class);
+        response.close();
+
+        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+            throw new Exception("Contact sorgulanamadı: " + resp);
+        }
+
+        org.json.JSONArray contacts = new org.json.JSONObject(resp).getJSONArray("contacts");
+        if (contacts.length() == 0) {
+            throw new Exception("Contact bulunamadı: " + email);
+        }
+        return contacts.getJSONObject(0).getString("id");
+    }
+
+    // ========================
+    // 3. YARDIMCI: Wix Loyalty bakiye sorgula
+    // ========================
+
+    private int getWixLoyaltyBalance(String contactId) throws Exception {
+        org.json.JSONObject body = new org.json.JSONObject()
+                .put("query", new org.json.JSONObject()
+                        .put("filter", new org.json.JSONObject()
+                                .put("contactId", new org.json.JSONObject()
+                                        .put("$eq", contactId))));
+
+        Response response = client.target("https://www.wixapis.com/loyalty-accounts/v1/accounts/query")
+                .request()
+                .header("Authorization", "Bearer " + API_KEY)
+                .header("wix-site-id", SITE_ID)
+                .header("Content-Type", "application/json")
+                .post(Entity.json(body.toString()));
+
+        String resp = response.readEntity(String.class);
+        response.close();
+
+        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+            throw new Exception("Loyalty sorgulanamadı: " + resp);
+        }
+
+        org.json.JSONObject data = new org.json.JSONObject(resp);
+        org.json.JSONArray accounts = data.has("accounts")
+                ? data.getJSONArray("accounts")
+                : data.getJSONArray("loyaltyAccounts");
+
+        if (accounts.length() == 0) {
+            return 0; // Hesap yoksa 0 puan
+        }
+        return accounts.getJSONObject(0)
+                .getJSONObject("points")
+                .getInt("balance");
+    }
+
+    // ========================
+    // 4. YARDIMCI: Loyalty puanını sıfırla
+    // ========================
+    private void resetLoyaltyPoints(String contactId) throws Exception {
+        // Önce account bilgisini al (id ve revision lazım)
+        org.json.JSONObject body = new org.json.JSONObject()
+                .put("query", new org.json.JSONObject()
+                        .put("filter", new org.json.JSONObject()
+                                .put("contactId", new org.json.JSONObject()
+                                        .put("$eq", contactId))));
+
+        Response response = client.target("https://www.wixapis.com/loyalty-accounts/v1/accounts/query")
+                .request()
+                .header("Authorization", "Bearer " + API_KEY)
+                .header("wix-site-id", SITE_ID)
+                .header("Content-Type", "application/json")
+                .post(Entity.json(body.toString()));
+
+        int status = response.getStatus();
+        String resp = response.readEntity(String.class);
+        response.close();
+
+        if (status != Response.Status.OK.getStatusCode()) {
+            throw new Exception("Loyalty account alınamadı: " + resp);
+        }
+
+        org.json.JSONObject data = new org.json.JSONObject(resp);
+        org.json.JSONArray accounts = data.has("accounts")
+                ? data.getJSONArray("accounts")
+                : data.getJSONArray("loyaltyAccounts");
+
+        if (accounts.length() == 0)
+            return; // hesap yoksa geç
+
+        org.json.JSONObject account = accounts.getJSONObject(0);
+        String accountId = account.getString("id");
+        String revision = account.getString("revision");
+
+        // Puanı sıfırla
+        org.json.JSONObject adjustPayload = new org.json.JSONObject()
+                .put("description", "Ödeme indirimi olarak kullanıldı")
+                .put("revision", revision)
+                .put("balance", 0);
+
+        Response adjustResponse = client.target(
+                "https://www.wixapis.com/loyalty-accounts/v1/accounts/" + accountId + "/adjust-points")
+                .request()
+                .header("Authorization", "Bearer " + API_KEY)
+                .header("wix-site-id", SITE_ID)
+                .header("Content-Type", "application/json")
+                .post(Entity.json(adjustPayload.toString()));
+
+        int adjustStatus = adjustResponse.getStatus();
+        String adjustResp = adjustResponse.readEntity(String.class);
+        adjustResponse.close();
+
+        if (adjustStatus != Response.Status.OK.getStatusCode()) {
+            throw new Exception("Puan sıfırlanamadı: " + adjustResp);
+        }
+
+        logger.info("Loyalty puanı sıfırlandı, accountId: {}", accountId);
+    }
+
 }

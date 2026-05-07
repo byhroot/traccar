@@ -36,6 +36,7 @@ import org.traccar.handler.GeocoderHandler;
 import org.traccar.handler.GeofenceHandler;
 import org.traccar.handler.GeolocationHandler;
 import org.traccar.handler.HemisphereHandler;
+import org.traccar.handler.IdleProcessingHandler;
 import org.traccar.handler.MotionHandler;
 import org.traccar.handler.OutdatedHandler;
 import org.traccar.handler.PositionForwardingHandler;
@@ -110,6 +111,7 @@ public class ProcessingHandler extends ChannelInboundHandlerAdapter implements B
                 DriverHandler.class,
                 CopyAttributesHandler.class,
                 EngineHoursHandler.class,
+                IdleProcessingHandler.class, // ← buraya
                 PositionForwardingHandler.class,
                 DatabaseHandler.class)
                 .map((clazz) -> (BasePositionHandler) injector.getInstance(clazz))
@@ -211,7 +213,7 @@ public class ProcessingHandler extends ChannelInboundHandlerAdapter implements B
             nextPosition = queue.peek();
         }
         if (nextPosition != null) {
-            processPositionHandlers(ctx, nextPosition);
+            ctx.executor().execute(() -> processPositionHandlers(ctx, nextPosition));
         }
     }
 

@@ -107,7 +107,11 @@ public abstract class JsonGeocoder implements Geocoder {
             statisticsManager.registerGeocoderRequest();
         }
 
-        var request = client.target(String.format(url, latitude, longitude)).request();
+        var request = client
+                .target(String.format(url, latitude, longitude))
+                .request()
+                .property("jersey.config.client.connectTimeout", 2000)
+                .property("jersey.config.client.readTimeout", 2000);
 
         if (callback != null) {
             request.async().get(new InvocationCallback<JsonObject>() {

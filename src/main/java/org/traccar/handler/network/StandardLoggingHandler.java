@@ -98,7 +98,7 @@ public class StandardLoggingHandler extends ChannelDuplexHandler {
             message.append(record.getAddress().getHostString());
             message.append("] ");
             message.append(record.getData());
-            LOGGER.info(message.toString());
+            LOGGER.debug(message.toString());
         }
     }
 

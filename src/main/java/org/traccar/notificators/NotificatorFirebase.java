@@ -84,7 +84,7 @@ public class NotificatorFirebase extends Notificator {
     @Override
     public void send(User user, NotificationMessage message, Event event, Position position) throws MessageException {
         if (user.hasAttribute("notificationTokens")) {
-            //takipon ios sesleri
+            // takipon ios sesleri
             String iosSound = "default";
             if (user.hasAttribute("notificationSound")) {
                 String notificationSound = user.getString("notificationSound");

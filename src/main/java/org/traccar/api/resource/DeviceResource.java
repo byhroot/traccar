@@ -97,32 +97,49 @@ public class DeviceResource extends BaseObjectResource<Device> {
         super(Device.class);
     }
 
-    //admin cihaz yönetimi
+    // admin cihaz yönetimi
     @Path("{id}")
     @PUT
     @Override
     public Response update(Device entity) throws Exception {
+
+        long userId = getUserId();
+        User user = permissionsService.getUser(userId);
+
         if (permissionsService.notAdmin(getUserId())) {
-    
             // Kullanıcı yetkili mi diye kontrol ediliyor
             permissionsService.checkPermission(Device.class, getUserId(), entity.getId());
-    
+
             // Doğru şekilde getObject kullanımı
             Device existing = storage.getObject(Device.class, new Request(
                     new Columns.All(), new Condition.Equals("id", entity.getId())));
-    
-            if (existing != null) {
-                entity.setExpirationTime(existing.getExpirationTime());
-                entity.setName(existing.getName());
 
+            if (existing != null) {
+                // Cihazın bitiş zamanını her zaman koru (admin harici kimse değiştiremesin)
+                entity.setExpirationTime(existing.getExpirationTime());
+                entity.setUniqueId(existing.getUniqueId());
+                entity.setPhone(existing.getPhone());
+
+                // 2. Servis Yetkisi Kontrolü
+                // Kullanıcının attributes kısmında servis: true olup olmadığına bakıyoruz
+                boolean isServiceUser = user.getAttributes().containsKey("servis")
+                        && Boolean.parseBoolean(user.getAttributes().get("servis").toString());
+
+                if (!isServiceUser) {
+                    // Eğer kullanıcı servis yetkilisi DEĞİLSE, ismini değiştirme (eski ismi set et)
+                    entity.setName(existing.getName());
+                }
+                // isServiceUser true ise bu bloğa girmez, entity.getName() fronttendden geldiği
+                // gibi kalır.
             } else {
                 throw new IllegalArgumentException("Device not found");
             }
         }
-    
+
         return super.update(entity);
     }
-    //device delete işlemi için admin gereksinimi
+
+    // device delete işlemi için admin gereksinimi
     @Path("{id}")
     @DELETE
     @Override
@@ -132,7 +149,7 @@ public class DeviceResource extends BaseObjectResource<Device> {
         }
         return super.remove(id);
     }
-    
+
     @GET
     public Stream<Device> get(
             @QueryParam("all") boolean all, @QueryParam("userId") long userId,
@@ -311,6 +328,10 @@ public class DeviceResource extends BaseObjectResource<Device> {
 
             storage.addPermission(new Permission(User.class, share.getId(), Device.class, deviceId));
         }
+
+        actionLogger.other(request, getUserId(), "share", "device", deviceId,
+                "Kullanıcı Paylaşım Hesabı Oluşturdu:" + shareEmail,
+                "Paylaşılan Cihaz:" + device.getName() + "Expiration Time:" + expiration);
 
         return tokenManager.generateToken(share.getId(), expiration);
     }

@@ -26,11 +26,11 @@ import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.TimeZone;
 
-public class TakiponProtocolDecoder extends BaseProtocolDecoder {
+public class Takiponr12ProtocolDecoder extends BaseProtocolDecoder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TakiponProtocolDecoder.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Takiponr12ProtocolDecoder.class);
 
-    public TakiponProtocolDecoder(Protocol protocol) {
+    public Takiponr12ProtocolDecoder(Protocol protocol) {
         super(protocol);
     }
 
@@ -427,28 +427,34 @@ public class TakiponProtocolDecoder extends BaseProtocolDecoder {
                 if (type == MSG_ALARM_STATUS) {// ALARM PAKETİ İSE ALARM DEĞERİ DÖNDÜR
                     position.set(Position.KEY_ALARM, decodeAlarm(buf.readUnsignedByte()));
                 } else {// HBT PAKETİYSE VOLTAJ DEĞERİ DÖNDÜR
-                    int hexValue = buf.readUnsignedByte(); // Okunan hexadecimal değeri alın Takipon
+                    int hexValue = buf.readUnsignedByte(); // Okunan hexadecimal değeri alın Takiponr12
                     double decimalValue = hexValue; // Hexadecimal değeri decimal'e çevirin takipon
                     position.set(Position.KEY_POWER, decimalValue);
                 }
+                position.set("workingmode", buf.readUnsignedByte());
 
                 // key_ignition durumunu kontrol et ve geçişi tespit et
                 boolean currentIgnition = position.getBoolean(Position.KEY_IGNITION); // currentIgnition'ı position'dan
                                                                                       // alıyoruz
-                boolean previousIgnition = deviceSession.getPreviousIgnition();
-                // key_ignition durumu açıktan kapalıya geçişi kontrol et
-                if (previousIgnition && !currentIgnition) {
-                    // Gönderilecek mesajı oluştur
-                    String message = "gpson,on#";
-                    ByteBuf messageBuf = Unpooled.buffer();
-                    // Sabit parametreler (0x0D000000)
-                    messageBuf.writeByte(0x0D);
-                    messageBuf.writeInt(0x00000000);
-                    // Mesaj verisini ekle
-                    messageBuf.writeBytes(message.getBytes(StandardCharsets.US_ASCII));
-                    sendResponse(channel, false, type2, buf.getShort(buf.writerIndex() - 6), messageBuf);
-                    LOGGER.debug("Kontak kapatıldıktan sonra konum güncelleme komutu gönderildi");
-                }
+                // boolean previousIgnition = deviceSession.getPreviousIgnition();
+
+                /*
+                 * // key_ignition durumu açıktan kapalıya geçişi kontrol et
+                 * if (previousIgnition && !currentIgnition) {
+                 * // Gönderilecek mesajı oluştur
+                 * String message = "gpson,on#";
+                 * ByteBuf messageBuf = Unpooled.buffer();
+                 * // Sabit parametreler (0x0D000000)
+                 * messageBuf.writeByte(0x0D);
+                 * messageBuf.writeInt(0x00000000);
+                 * // Mesaj verisini ekle
+                 * messageBuf.writeBytes(message.getBytes(StandardCharsets.US_ASCII));
+                 * sendResponse(channel, false, type2, buf.getShort(buf.writerIndex() - 6),
+                 * messageBuf);
+                 * LOGGER.debug("Kontak kapatıldıktan sonra konum güncelleme komutu gönderildi"
+                 * );
+                 * }
+                 */
                 // Güncellenmiş currentIgnition durumunu sakla
                 deviceSession.setPreviousIgnition(currentIgnition);
             }

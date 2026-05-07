@@ -58,13 +58,13 @@ public class MainEventHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
         if (!(ctx.channel() instanceof DatagramChannel)) {
-            LOGGER.info("[{}] connected", NetworkUtil.session(ctx.channel()));
+            LOGGER.debug("[{}] connected", NetworkUtil.session(ctx.channel()));
         }
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        LOGGER.info("[{}] disconnected", NetworkUtil.session(ctx.channel()));
+        LOGGER.debug("[{}] disconnected", NetworkUtil.session(ctx.channel()));
         closeChannel(ctx.channel());
 
         boolean supportsOffline = BasePipelineFactory.getHandler(ctx.pipeline(), HttpRequestDecoder.class) == null
