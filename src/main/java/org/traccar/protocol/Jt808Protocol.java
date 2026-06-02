@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2018 Anton Tananaev (anton@traccar.org)
+ * Copyright 2015 - 2026 Anton Tananaev (anton@traccar.org)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,24 +15,35 @@
  */
 package org.traccar.protocol;
 
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.traccar.BaseProtocol;
 import org.traccar.PipelineBuilder;
 import org.traccar.TrackerServer;
 import org.traccar.config.Config;
+import org.traccar.model.Command;
 
-import java.nio.ByteOrder;
 import jakarta.inject.Inject;
 
-public class ApelProtocol extends BaseProtocol {
+public class Jt808Protocol extends BaseProtocol {
 
     @Inject
-    public ApelProtocol(Config config) {
+    public Jt808Protocol(Config config) {
+        setSupportedDataCommands(
+                Command.TYPE_CUSTOM,
+                Command.TYPE_REBOOT_DEVICE,
+                Command.TYPE_POSITION_PERIODIC,
+                Command.TYPE_ALARM_ARM,
+                Command.TYPE_ALARM_DISARM,
+                Command.TYPE_ENGINE_STOP,
+                Command.TYPE_ENGINE_RESUME,
+                Command.TYPE_VIDEO_START,
+                Command.TYPE_VIDEO_STOP);
         addServer(new TrackerServer(config, getName(), false) {
             @Override
             protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {
-                pipeline.addLast(new LengthFieldBasedFrameDecoder(ByteOrder.LITTLE_ENDIAN, 1024, 2, 2, 4, 0, true));
-                pipeline.addLast(new ApelProtocolDecoder(ApelProtocol.this));
+                pipeline.addLast(new Jt808FrameEncoder());
+                pipeline.addLast(new Jt808FrameDecoder());
+                pipeline.addLast(new Jt808ProtocolEncoder(Jt808Protocol.this));
+                pipeline.addLast(new Jt808ProtocolDecoder(Jt808Protocol.this));
             }
         });
     }

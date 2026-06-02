@@ -60,7 +60,9 @@ public class Command extends BaseCommand {
     public static final String TYPE_SET_SPEED_LIMIT = "setSpeedLimit";
     public static final String TYPE_MODE_POWER_SAVING = "modePowerSaving";
     public static final String TYPE_MODE_DEEP_SLEEP = "modeDeepSleep";
-
+    public static final String TYPE_MODE_DEEP_OFF = "modeDeepSleepOff";
+    public static final String TYPE_VIDEO_START = "videoStart";
+    public static final String TYPE_VIDEO_STOP = "videoStop";
     public static final String TYPE_ALARM_GEOFENCE = "alarmGeofence";
     public static final String TYPE_ALARM_BATTERY = "alarmBattery";
     public static final String TYPE_ALARM_SOS = "alarmSos";
@@ -72,7 +74,29 @@ public class Command extends BaseCommand {
     public static final String TYPE_ALARM_VIBRATIONON = "alarmVibrationon";
     public static final String TYPE_ALARM_VIBRATIONOFF = "alarmVibrationoff";
     public static final String TYPE_ALARM_VIBRATIONLEVEL = "alarmVibrationlevel";
+    public static final String TYPE_ALARM_ACCELERATION = "alarmAcceleration";
+    public static final String TYPE_ALARM_DECELERATION = "alarmDeceleration";
+    public static final String TYPE_ALARM_HARSH_TURNING = "alarmHarshTurning";
+    public static final String TYPE_ALARM_IMPACT = "alarmImpact";
+    public static final String TYPE_ALARM_IDLING = "alarmIdling";
+    public static final String TYPE_ALARM_FATIGUE_DRIVING = "alarmFatigueDriving";
+    public static final String TYPE_ALARM_VIBRATION_SENSITIVITY = "alarmVibrationSensitivity";
+    public static final String TYPE_ALARM_GSM_JAMMING = "alarmGsmJamming";
+    public static final String TYPE_ACC_OFF_NO_POSITION = "accOffNoPosition";
+    public static final String TYPE_SMS_INTERVAL = "smsInterval";
 
+    public static final String KEY_SENSITIVITY = "sensitivity";
+    public static final String KEY_NORMAL_TIME = "normalTime";
+    public static final String KEY_ACC_OFF_TIME = "accOffTime";
+    public static final String KEY_STOPPING_TIME = "stoppingTime";
+    public static final String KEY_FATIGUE_TIME = "fatigueTime";
+    public static final String KEY_REST_TIME = "restTime";
+    public static final String KEY_TOTAL_DRIVE_TIME = "totalDriveTime";
+    public static final String KEY_VALUE = "value";
+    public static final String KEY_TIME = "time";
+    public static final String KEY_MODE = "mode";
+    public static final String KEY_ACCELERATION = "acceleration";
+    public static final String KEY_DECELERATION = "deceleration";
     public static final String KEY_UNIQUE_ID = "uniqueId";
     public static final String KEY_FREQUENCY = "frequency";
     public static final String KEY_LANGUAGE = "language";

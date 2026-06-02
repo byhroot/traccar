@@ -18,6 +18,7 @@ import org.traccar.model.User;
 import org.traccar.notification.MessageException;
 import org.traccar.notification.NotificationFormatter;
 import org.traccar.notification.NotificationMessage;
+import org.traccar.notification.NotificatorManager;
 import org.traccar.storage.Storage;
 import org.traccar.storage.StorageException;
 import org.traccar.storage.query.Condition;
@@ -40,8 +41,8 @@ public class NotificatorPushover extends Notificator {
 
     private final Client client;
 
-    private static final ScheduledExecutorService scheduler =
-    Executors.newScheduledThreadPool(2); // 2 thread yeterlidir
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2); // 2 thread
+                                                                                                   // yeterlidir
 
     public static class Message {
         @JsonProperty("token")
@@ -62,10 +63,9 @@ public class NotificatorPushover extends Notificator {
     private final StatisticsManager statisticsManager;
     private final Storage storage;
 
-    
     @Inject
     public NotificatorPushover(Config config, NotificationFormatter notificationFormatter, Client client,
-                               StatisticsManager statisticsManager, Storage storage) {
+            StatisticsManager statisticsManager, Storage storage) {
         super(notificationFormatter);
         this.client = client;
         this.apiUrl = "https://api.netgsm.com.tr/voicesms/send";
@@ -78,11 +78,15 @@ public class NotificatorPushover extends Notificator {
     @Inject
     private LogAction actionLogger;
 
+    @Inject
+    private NotificatorManager notificatorManager;
+
     @Override
-    public void send(User user, NotificationMessage shortMessage, Event event, Position position)  throws MessageException {
+    public void send(User user, NotificationMessage shortMessage, Event event, Position position)
+            throws MessageException {
         if (user.getPhone() != null) {
             if (user.hasAttribute("smsLimit")) {
-                int smsLimit = user.getInteger("smsLimit");  // smsLimit doğrudan sayı olarak alınıyor
+                int smsLimit = user.getInteger("smsLimit"); // smsLimit doğrudan sayı olarak alınıyor
                 if (smsLimit > 0) {
                     Message message = new Message();
                     message.title = shortMessage.subject();
@@ -90,7 +94,7 @@ public class NotificatorPushover extends Notificator {
                     int audioId = -1;
 
                     String titleLower = message.title.toLowerCase();
-                    
+
                     // audioId eşleşmesi
                     if (titleLower.contains("alarm")) {
                         audioId = 104389777;
@@ -103,12 +107,11 @@ public class NotificatorPushover extends Notificator {
                     } else if (titleLower.contains("test")) {
                         audioId = 140029795;
                     } else {
-                        audioId = -1;  // bu değer ile, ses gönderilmeyeceğini anlayacağız
+                        audioId = -1; // bu değer ile, ses gönderilmeyeceğini anlayacağız
                     }
-                    
-        
+
                     Map<String, Object> jsonData = new HashMap<>();
-        
+
                     // Header bölümünü oluştur
                     Map<String, String> headerMap = new HashMap<>();
                     headerMap.put("username", username);
@@ -116,70 +119,72 @@ public class NotificatorPushover extends Notificator {
                     headerMap.put("key", "0");
                     headerMap.put("url", "");
                     headerMap.put("appkey", "");
-        
+
                     // Seri ve numara bilgileriyle body bölümünü oluştur
                     Map<String, Object> bodyMap = new HashMap<>();
                     Map<String, Object> scenarioMap = new HashMap<>();
-        
+
                     // Series kısmı
                     Map<String, String> seriesMap = new HashMap<>();
                     seriesMap.put("seri", "1");
-                    
+
                     // Eğer uygun başlık varsa audioid ekle, yoksa text ekle
                     if (titleLower.contains("siparis") || titleLower.contains("aktivasyon")
-                    || titleLower.contains("yillik") || titleLower.contains("test")) {
+                            || titleLower.contains("yillik") || titleLower.contains("test")) {
                         seriesMap.put("audioid", String.valueOf(audioId));
                     } else {
-                        seriesMap.put("text", "Merhaba, TakipOn'dan bir bildiriminiz var. " 
-                            + message.message 
-                            + " Bildirim detaylarını Mobil uygulamadan görüntüleyebilirsiniz. Güvenli Günler Dileriz.");
+                        seriesMap.put("text", "Merhaba, TakipOn'dan bir bildiriminiz var. "
+                                + message.message
+                                + " Bildirim detaylarını Mobil uygulamadan görüntüleyebilirsiniz. Güvenli Günler Dileriz.");
                     }
                     // Numbers kısmı
                     Map<String, String> numbersMap = new HashMap<>();
                     numbersMap.put("no", user.getPhone());
-        
-                    scenarioMap.put("series", new Map[]{seriesMap});
-                    scenarioMap.put("numbers", new Map[]{numbersMap});
-        
+
+                    scenarioMap.put("series", new Map[] { seriesMap });
+                    scenarioMap.put("numbers", new Map[] { numbersMap });
+
                     bodyMap.put("scenario", scenarioMap);
-        
+
                     // JSON ana yapısını birleştir
                     jsonData.put("header", headerMap);
                     jsonData.put("body", bodyMap);
-        
+
                     try (Response response = client.target(apiUrl)
-                        .request()
-                        .post(Entity.json(jsonData))) {
-            
-        
+                            .request()
+                            .post(Entity.json(jsonData))) {
+
                         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
                             String responseBody = response.readEntity(String.class);
                             LOGGER.info("API yanıtı: " + responseBody);
-            
+
                             // Yanıtı ayrıştırma
                             String[] parts = responseBody.split(" ");
                             String statusCode = parts[0]; // İlk kısım durum kodu
-                            String messageIdOrError = parts.length > 1 ? parts[1] : ""; // İkinci kısım mesaj ID'si veya hata mesajı
-            
+                            String messageIdOrError = parts.length > 1 ? parts[1] : ""; // İkinci kısım mesaj ID'si veya
+                                                                                        // hata mesajı
+
                             if ("00".equals(statusCode)) {
                                 LOGGER.info("Sesli mesaj başarıyla gönderildi. Mesaj ID: " + messageIdOrError);
-            
+
                                 // 3 dakika sonra durum sorgulama işlemi
                                 scheduler.schedule(() -> {
                                     try {
-                                        checkMessageStatus(user, messageIdOrError, smsLimit);
+                                        checkMessageStatus(user, messageIdOrError, smsLimit, event, position);
                                     } catch (Exception e) {
                                         LOGGER.warn("Mesaj durumu kontrol edilirken hata: " + e.getMessage());
                                     }
                                 }, 2, TimeUnit.MINUTES);
 
-                                
                                 // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
-                                //userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " +  audioId + " Tel: " + user.getPhone() + " User: " + user.getName() );
+                                // userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " + audioId +
+                                // " Tel: " + user.getPhone() + " User: " + user.getName() );
                                 try {
-                                    actionLogger.other(null, user.getId(), "notification", "call", 1 , "Name:"+ user.getName() + "Phone:"+ user.getPhone(), "Sesli Mesaj Gönderildi - Durum:" + String.valueOf(statusCode) );
-                                } catch (Exception e){
-                                    LOGGER.info("SMS DB loglama hatası oldu",e);
+                                    actionLogger.other(null, user.getId(), "notification", "call", 1,
+                                            "Name:" + user.getName() + "Phone:" + user.getPhone(),
+                                            "Sesli Mesaj Gönderildi - Durum:" + String.valueOf(statusCode));
+                                } catch (Exception e) {
+                                    LOGGER.info("SMS DB loglama hatası oldu", e);
                                 }
                             } else {
                                 handleErrorCodes(statusCode, user);
@@ -198,25 +203,26 @@ public class NotificatorPushover extends Notificator {
                 }
             } else {
                 LOGGER.warn("SMS değeri kullanıcıda tanımlı değil.");
-                throw new MessageException("SMS Değeri Tanımlı Değil" + user.getName() );
+                throw new MessageException("SMS Değeri Tanımlı Değil" + user.getName());
             }
         } else {
-            LOGGER.warn("Kullanıcının telefon numarası bulunmuyor." + user.getName() );
-            throw new MessageException("Kullanıcının telefon numarası bulunmuyor" + user.getName() );
+            LOGGER.warn("Kullanıcının telefon numarası bulunmuyor." + user.getName());
+            throw new MessageException("Kullanıcının telefon numarası bulunmuyor" + user.getName());
 
         }
     }
 
-    public void sendSystem(User user, NotificationMessage shortMessage, Event event, Position position, boolean systemNotify)  throws MessageException {
+    public void sendSystem(User user, NotificationMessage shortMessage, Event event, Position position,
+            boolean systemNotify) throws MessageException {
         if (user.getPhone() != null) {
-            int smsLimit = user.getInteger("smsLimit");  // smsLimit doğrudan sayı olarak alınıyor
+            int smsLimit = user.getInteger("smsLimit"); // smsLimit doğrudan sayı olarak alınıyor
             Message message = new Message();
             message.title = shortMessage.subject();
             message.message = shortMessage.digest();
             int audioId = -1;
 
             String titleLower = message.title.toLowerCase();
-            
+
             // audioId eşleşmesi
             if (titleLower.contains("alarm")) {
                 audioId = 104389777;
@@ -229,9 +235,8 @@ public class NotificatorPushover extends Notificator {
             } else if (titleLower.contains("test")) {
                 audioId = 140029795;
             } else {
-                audioId = -1;  // bu değer ile, ses gönderilmeyeceğini anlayacağız
+                audioId = -1; // bu değer ile, ses gönderilmeyeceğini anlayacağız
             }
-            
 
             Map<String, Object> jsonData = new HashMap<>();
 
@@ -250,22 +255,22 @@ public class NotificatorPushover extends Notificator {
             // Series kısmı
             Map<String, String> seriesMap = new HashMap<>();
             seriesMap.put("seri", "1");
-            
+
             // Eğer uygun başlık varsa audioid ekle, yoksa text ekle
             if (titleLower.contains("siparis") || titleLower.contains("aktivasyon")
-            || titleLower.contains("yillik") || titleLower.contains("test")) {
+                    || titleLower.contains("yillik") || titleLower.contains("test")) {
                 seriesMap.put("audioid", String.valueOf(audioId));
             } else {
-                seriesMap.put("text", "Merhaba, TakipOn'dan bir bildiriminiz var. " 
-                    + message.message 
-                    + " Bildirim detaylarını Mobil uygulamadan görüntüleyebilirsiniz. Güvenli Günler Dileriz.");
+                seriesMap.put("text", "Merhaba, TakipOn'dan bir bildiriminiz var. "
+                        + message.message
+                        + " Bildirim detaylarını Mobil uygulamadan görüntüleyebilirsiniz. Güvenli Günler Dileriz.");
             }
             // Numbers kısmı
             Map<String, String> numbersMap = new HashMap<>();
             numbersMap.put("no", user.getPhone());
 
-            scenarioMap.put("series", new Map[]{seriesMap});
-            scenarioMap.put("numbers", new Map[]{numbersMap});
+            scenarioMap.put("series", new Map[] { seriesMap });
+            scenarioMap.put("numbers", new Map[] { numbersMap });
 
             bodyMap.put("scenario", scenarioMap);
 
@@ -274,38 +279,40 @@ public class NotificatorPushover extends Notificator {
             jsonData.put("body", bodyMap);
 
             try (Response response = client.target(apiUrl)
-                .request()
-                .post(Entity.json(jsonData))) {
-    
+                    .request()
+                    .post(Entity.json(jsonData))) {
 
                 if (response.getStatus() == Response.Status.OK.getStatusCode()) {
                     String responseBody = response.readEntity(String.class);
                     LOGGER.info("API yanıtı: " + responseBody);
-    
+
                     // Yanıtı ayrıştırma
                     String[] parts = responseBody.split(" ");
                     String statusCode = parts[0]; // İlk kısım durum kodu
-                    String messageIdOrError = parts.length > 1 ? parts[1] : ""; // İkinci kısım mesaj ID'si veya hata mesajı
-    
+                    String messageIdOrError = parts.length > 1 ? parts[1] : ""; // İkinci kısım mesaj ID'si veya hata
+                                                                                // mesajı
+
                     if ("00".equals(statusCode)) {
                         LOGGER.info("Sesli mesaj başarıyla gönderildi. Mesaj ID: " + messageIdOrError);
-    
+
                         // 2 dakika sonra durum sorgulama işlemi
                         scheduler.schedule(() -> {
                             try {
-                                checkMessageStatus(user, messageIdOrError, smsLimit);
+                                checkMessageStatus(user, messageIdOrError, smsLimit, event, position);
                             } catch (Exception e) {
                                 LOGGER.warn("Mesaj durumu kontrol edilirken hata: " + e.getMessage());
                             }
                         }, 2, TimeUnit.MINUTES);
 
-                        
                         // UserLogs modelinde veritabanına kaydetme işlemini yapıyoruz
-                        //userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " +  audioId + " Tel: " + user.getPhone() + " User: " + user.getName() );
+                        // userlogs.saveToDatabase(user.getId(), "Sesli Mesaj Gönderildi: " + audioId +
+                        // " Tel: " + user.getPhone() + " User: " + user.getName() );
                         try {
-                            actionLogger.other(null, user.getId(), "notification", "call", 1 , "Name:"+ user.getName() + "Phone:"+ user.getPhone(), "Sesli Mesaj Gönderildi - Durum:" + String.valueOf(statusCode) );
-                        } catch (Exception e){
-                            LOGGER.info("Sesli Mesaj Gönderim Hatası:",e);
+                            actionLogger.other(null, user.getId(), "notification", "call", 1,
+                                    "Name:" + user.getName() + "Phone:" + user.getPhone(),
+                                    "Sesli Mesaj Gönderildi - Durum:" + String.valueOf(statusCode));
+                        } catch (Exception e) {
+                            LOGGER.info("Sesli Mesaj Gönderim Hatası:", e);
                         }
                     } else {
                         handleErrorCodes(statusCode, user);
@@ -318,115 +325,138 @@ public class NotificatorPushover extends Notificator {
                 }
             }
         } else {
-            LOGGER.warn("Kullanıcının telefon numarası bulunmuyor." + user.getName() );
-            throw new MessageException("Kullanıcının telefon numarası bulunmuyor" + user.getName() );
+            LOGGER.warn("Kullanıcının telefon numarası bulunmuyor." + user.getName());
+            throw new MessageException("Kullanıcının telefon numarası bulunmuyor" + user.getName());
 
         }
     }
-    private void checkMessageStatus(User user, String messageIdOrError, int smsLimit) {
-        // Rapor sorgulama için gerekli parametreleri hazırlıyoruz.
+
+    private void checkMessageStatus(User user, String messageIdOrError, int smsLimit, Event event, Position position) {
         String usercode = username;
         String password = this.password;
-        String type = "0"; // Tek bulkid'ye göre sorgulama
+        String type = "0";
         String bulkid = messageIdOrError;
 
-        // API URL'sini oluşturuyoruz
         String reportApiUrl = String.format(
-            "https://api.netgsm.com.tr/voicesms/report/?usercode=%s&password=%s&bulkid=%s&type=%s",
-            usercode, password, bulkid, type
-        );
-    
-        // GET isteğini gönderiyoruz
+                "https://api.netgsm.com.tr/voicesms/report/?usercode=%s&password=%s&bulkid=%s&type=%s",
+                usercode, password, bulkid, type);
+
         try (Response reportResponse = client.target(reportApiUrl)
-            .request()
-            .get()) {
-    
-    
+                .request()
+                .get()) {
+
             if (reportResponse.getStatus() == Response.Status.OK.getStatusCode()) {
                 String reportStatus = reportResponse.readEntity(String.class);
                 LOGGER.info("Rapor Durumu: " + reportStatus);
-            
-                // Gelen rapor durumunu parçalama
-                String[] reports = reportStatus.split("<br>"); // '<br>' ile ayır
+
+                String[] reports = reportStatus.split("<br>");
                 boolean isAnswered = false;
-            
+                String statusDescription = "Bilinmeyen durum";
+
                 for (String report : reports) {
-                    report = report.trim(); // Satırı kırparak boşlukları kaldır
-            
-                    if (!report.isEmpty()) { // Boş satırları atla
-                        String[] details = report.split("\\s+"); // Boşluk karakterleri ile ayır
-            
-                        // Durumu kontrol et
-                        if (details.length >= 3) { // 3 eleman var mı?
-                            String statusCode = details[2].trim(); // 3. eleman durumu temsil ediyor
-            
-                            // Cevaplananlar (1) durumunu kontrol et
+                    report = report.trim();
+                    if (!report.isEmpty()) {
+                        String[] details = report.split("\\s+");
+                        if (details.length >= 3) {
+                            String statusCode = details[2].trim();
                             if ("1".equals(statusCode)) {
                                 isAnswered = true;
+                                statusDescription = "Çağrı cevaplandı";
                                 break;
-
                             } else {
-                                // Diğer durumları işleme al
+                                statusDescription = getStatusDescription(statusCode);
                                 handleMessageStatus(statusCode);
+                                // Ulaşılamadı durumunda SMS gönder
+                                if ("3".equals(statusCode)) {
+                                    try {
+                                        NotificationMessage smsMessage = new NotificationMessage(
+                                                "📞 Sesli Bildirim, Ulaşılamadınız.",
+                                                "TakipOn'dan bir sesli çağrı bildirimi aldınız ancak ulaşılamadınız Lütfen uygulamadan son bildirimleri kontrol ediniz.",
+                                                "",
+                                                true);
+                                        notificatorManager.getNotificator("sms").send(user, smsMessage, null, null);
+                                        notificatorManager.getNotificator("firebase").send(user, smsMessage, event,
+                                                position);
+
+                                        LOGGER.info("Ulaşılamadı SMS'i gönderildi: " + user.getPhone());
+                                    } catch (Exception e) {
+                                        LOGGER.warn("Ulaşılamadı SMS gönderilemedi: " + e.getMessage());
+                                    }
+                                }
+
                             }
-                            
                         } else {
                             LOGGER.warn("Beklenmeyen rapor formatı: " + report);
                         }
                     }
                 }
-            
-                if (isAnswered) {
+
+                int limitChange = isAnswered ? 4 : 1;
+                int remainingLimit = smsLimit - limitChange;
+
+                try {
+                    user.set("smsLimit", remainingLimit);
+                    storage.updateObject(user, new Request(
+                            new Columns.Include("attributes"),
+                            new Condition.Equals("id", user.getId())));
+                    statisticsManager.registerSms();
+                    LOGGER.info("SMS limiti güncellendi. Yeni limit: " + remainingLimit);
+
                     try {
-                        user.set("smsLimit", smsLimit - 4); // SMS limitini 1 azalt
-                        storage.updateObject(user, new Request(
-                                new Columns.Include("attributes"),
-                                new Condition.Equals("id", user.getId())));
-                        statisticsManager.registerSms();
-                        LOGGER.info("Çağrı Cevaplandı - SMS limiti başarıyla güncellendi.");
-                        try {
-                            actionLogger.other(null, user.getId(), "notification", "call", 4 , "Name:"+ user.getName() + "| Phone:"+ user.getPhone(), " - Sesli Mesaj Cevaplandı, SMS Limiti güncellendi. " + "| Kalan Limit: " + String.valueOf(smsLimit -4) );
-                        } catch (Exception e){
-                            LOGGER.info("SMS DB loglama hatası oldu",e);
-                        }
-                        
-                    } catch (StorageException e) {
-                        LOGGER.warn("SMS limit güncellenirken hata: " + e.getMessage());
+                        actionLogger.other(
+                                null,
+                                user.getId(),
+                                "notification",
+                                "callStatus",
+                                limitChange,
+                                "Name:" + user.getName() + " | Phone:" + user.getPhone(),
+                                "Durum: " + statusDescription + " | Kalan Limit: " + remainingLimit // <-- desc2
+                        );
+                    } catch (Exception e) {
+                        LOGGER.info("SMS DB loglama hatası oldu", e);
                     }
-                } else {
-                    try {
-                        user.set("smsLimit", smsLimit - 1); // SMS limitini 1 azalt
-                        storage.updateObject(user, new Request(
-                                new Columns.Include("attributes"),
-                                new Condition.Equals("id", user.getId())));
-                        statisticsManager.registerSms();
-                        LOGGER.info("Çağrı Cevaplandı - SMS limiti başarıyla güncellendi.");
-                        try {
-                            actionLogger.other(null, user.getId(), "notification", "call", 1 , "Name:"+ user.getName() + "| Phone:"+ user.getPhone(), " - Sesli Mesaj Cevaplandı, SMS Limiti güncellendi. " + "| Kalan Limit: " + String.valueOf(smsLimit -4) );
-                        } catch (Exception e){
-                            LOGGER.info("SMS DB loglama hatası oldu",e);
-                        }
-                        
-                    } catch (StorageException e) {
-                        LOGGER.warn("SMS limit güncellenirken hata: " + e.getMessage());
-                    }
-                    LOGGER.info("Mesaj cevaplanmadı.");
+
+                } catch (StorageException e) {
+                    LOGGER.warn("SMS limit güncellenirken hata: " + e.getMessage());
                 }
+
             } else {
                 LOGGER.warn("Rapor sorgulama başarısız: " + reportResponse.getStatus());
             }
         }
     }
-    
-    
-    
+
+    private String getStatusDescription(String statusCode) {
+        switch (statusCode) {
+            case "2":
+                return "Mesaj cevaplanmadı";
+            case "3":
+                return "Mesaja veya Numaraya ulaşılamadı";
+
+            case "4":
+                return "Ücretlendirme yapılamadı, varlık yetersiz";
+            case "5":
+                return "Mesaj iptal edildi";
+            case "6":
+                return "Mesaj başarısız, başlatılamayan çağrı";
+            case "7":
+                return "Meşgule alındı";
+            case "8":
+                return "Geçersiz numara";
+            case "9":
+                return "Mesaj süresi doldu";
+            default:
+                return "Bilinmeyen durum kodu: " + statusCode;
+        }
+    }
+
     private void handleMessageStatus(String statusCode) {
         switch (statusCode) {
             case "2":
                 LOGGER.info("Mesaj cevaplanmadı.");
                 break;
             case "3":
-                LOGGER.warn("Mesaja ulaşılamadı.");
+                LOGGER.warn("Mesaja veya Numaraya ulaşılamadı.");
                 break;
             case "4":
                 LOGGER.warn("Ücretlendirme yapılamadı. Varlık yetersiz.");
@@ -454,7 +484,7 @@ public class NotificatorPushover extends Notificator {
 
     private void handleErrorCodes(String statusCode, User user) {
         String message;
-    
+
         switch (statusCode) {
             case "01":
                 message = "Mesaj gönderim başlangıç tarihinde hata var. Sistem tarihi ile değiştirildi.";
@@ -478,17 +508,17 @@ public class NotificatorPushover extends Notificator {
                 message = "Bilinmeyen hata kodu: " + statusCode;
                 break;
         }
-            // Log dosyasına yaz
+        // Log dosyasına yaz
         LOGGER.warn(message);
-            // Veritabanı loglama
+        // Veritabanı loglama
         try {
-            actionLogger.other(null, user.getId(),"notification","call",999, "Name:" + user.getName() + " Phone:" + user.getPhone(),"Durum: " + message + "Code:" + statusCode);
+            actionLogger.other(null, user.getId(), "notification", "call", 999,
+                    "Name:" + user.getName() + " Phone:" + user.getPhone(), "Durum: " + message + "Code:" + statusCode);
         } catch (Exception e) {
             LOGGER.info("SMS DB loglama hatası oldu", e);
         }
     }
 
-    
     static {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             scheduler.shutdown();

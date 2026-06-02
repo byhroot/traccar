@@ -244,7 +244,7 @@ public class PortConfigSuffix extends ConfigSuffix<Integer> {
         PORTS.put("dolphin", 5219);
         PORTS.put("ennfu", 5220);
         PORTS.put("navtelecom", 5221);
-        PORTS.put("startek", 5222);
+        PORTS.put("startek", 5270);
         PORTS.put("gs100", 5223);
         PORTS.put("mavlink2", 5224);
         PORTS.put("uux", 5225);
@@ -286,6 +286,7 @@ public class PortConfigSuffix extends ConfigSuffix<Integer> {
         PORTS.put("takipon", 5250);
         PORTS.put("takiponalong", 5260);
         PORTS.put("takiponr12", 5261);
+        PORTS.put("jt808", 5280);
 
     }
 

@@ -33,7 +33,39 @@ public class StartekProtocol extends BaseProtocol {
                 Command.TYPE_CUSTOM,
                 Command.TYPE_OUTPUT_CONTROL,
                 Command.TYPE_ENGINE_STOP,
-                Command.TYPE_ENGINE_RESUME);
+                Command.TYPE_ENGINE_RESUME,
+                Command.TYPE_SET_CONNECTION,
+                Command.TYPE_SEND_USSD,
+
+                // Power modes
+                Command.TYPE_MODE_DEEP_OFF,
+                Command.TYPE_MODE_POWER_SAVING,
+                Command.TYPE_MODE_DEEP_SLEEP,
+
+                // Arming
+                Command.TYPE_ALARM_ARM,
+                Command.TYPE_ALARM_DISARM,
+
+                // Motion / driving alarms
+                Command.TYPE_ALARM_ACCELERATION,
+                Command.TYPE_ALARM_DECELERATION,
+                Command.TYPE_ALARM_HARSH_TURNING,
+                Command.TYPE_ALARM_IMPACT,
+                Command.TYPE_ALARM_VIBRATION,
+                Command.TYPE_ALARM_VIBRATION_SENSITIVITY,
+                Command.TYPE_ALARM_IDLING,
+                Command.TYPE_ALARM_FATIGUE_DRIVING,
+                Command.TYPE_ALARM_GSM_JAMMING,
+
+                // Position / AGPS
+                Command.TYPE_ACC_OFF_NO_POSITION,
+                Command.TYPE_SET_AGPS,
+
+                // Reporting
+                Command.TYPE_SMS_INTERVAL,
+
+                // Device
+                Command.TYPE_REBOOT_DEVICE);
         addServer(new TrackerServer(config, getName(), false) {
             @Override
             protected void addProtocolHandlers(PipelineBuilder pipeline, Config config) {

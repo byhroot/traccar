@@ -1,17 +1,6 @@
 /*
- * Copyright 2021 - 2024 Anton Tananaev (anton@traccar.org)
+ * Traccar Server
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 package org.traccar.protocol;
 
@@ -38,60 +27,60 @@ public class StartekProtocolDecoder extends BaseProtocolDecoder {
 
     private static final Pattern PATTERN = new PatternBuilder()
             .text("&&")
-            .expression(".")                     // index
-            .number("d+,")                       // length
-            .number("(d+),")                     // imei
-            .number("(xxx),")                    // type
-            .expression("(.+)")                  // content
-            .number("xx")                        // checksum
+            .expression(".") // index
+            .number("d+,") // length
+            .number("(d+),") // imei
+            .number("(xxx),") // type
+            .expression("(.+)") // content
+            .number("xx") // checksum
             .text("\r\n")
             .compile();
 
     private static final Pattern PATTERN_POSITION = new PatternBuilder()
-            .number("(d+),")                     // event
-            .expression("([^,]+)?,")             // event data
-            .number("(dd)(dd)(dd)")              // date (yyymmdd)
-            .number("(dd)(dd)(dd),")             // time (hhmmss)
-            .expression("([AV]),")               // valid
-            .number("(-?d+.d+),")                // longitude
-            .number("(-?d+.d+),")                // latitude
-            .number("(d+),")                     // satellites
-            .number("(d+.d+),")                  // hdop
-            .number("(d+),")                     // speed
-            .number("(d+),")                     // course
-            .number("(-?d+),")                   // altitude
-            .number("(d+),")                     // odometer
-            .number("(d+)|")                     // mcc
-            .number("(d+)|")                     // mnc
-            .number("(x+)|")                     // lac
-            .number("(x+),")                     // cid
-            .number("(d+),")                     // rssi
-            .number("(x+),")                     // status
-            .number("(x+),")                     // inputs
-            .number("(x+),")                     // outputs
-            .number("(x+)|")                     // power
-            .number("(x+)")                      // battery
-            .expression("([^,]+)?")              // adc
+            .number("(d+),") // event
+            .expression("([^,]+)?,") // event data
+            .number("(dd)(dd)(dd)") // date (yyymmdd)
+            .number("(dd)(dd)(dd),") // time (hhmmss)
+            .expression("([AV]),") // valid
+            .number("(-?d+.d+),") // longitude
+            .number("(-?d+.d+),") // latitude
+            .number("(d+),") // satellites
+            .number("(d+.d+),") // hdop
+            .number("(d+),") // speed
+            .number("(d+),") // course
+            .number("(-?d+),") // altitude
+            .number("(d+),") // odometer
+            .number("(d+)|") // mcc
+            .number("(d+)|") // mnc
+            .number("(x+)|") // lac
+            .number("(x+),") // cid
+            .number("(d+),") // rssi
+            .number("(x+),") // status
+            .number("(x+),") // inputs
+            .number("(x+),") // outputs
+            .number("(x+)|") // power
+            .number("(x+)") // battery
+            .expression("([^,]+)?") // adc
             .groupBegin()
-            .number(",d+")                       // extended
-            .expression(",([^,]+)?")             // fuel
+            .number(",d+") // extended
+            .expression(",([^,]+)?") // fuel
             .groupBegin()
-            .expression(",([^,]+)?")             // temperature
+            .expression(",([^,]+)?") // temperature
             .groupBegin()
             .text(",")
             .groupBegin()
-            .number("(d+)?|")                    // rpm
-            .number("(d+)?|")                    // engine load
-            .number("(d+)?|")                    // maf flow
-            .number("(d+)?|")                    // intake pressure
-            .number("(d+)?|")                    // intake temperature
-            .number("(d+)?|")                    // throttle
-            .number("(d+)?|")                    // coolant temperature
-            .number("(d+)?|")                    // instant fuel
-            .number("(d+)[%L]").optional()       // fuel level
+            .number("(d+)?|") // rpm
+            .number("(d+)?|") // engine load
+            .number("(d+)?|") // maf flow
+            .number("(d+)?|") // intake pressure
+            .number("(d+)?|") // intake temperature
+            .number("(d+)?|") // throttle
+            .number("(d+)?|") // coolant temperature
+            .number("(d+)?|") // instant fuel
+            .number("(d+)[%L]").optional() // fuel level
             .groupEnd("?")
             .expression(",([^,]{20,})").optional() // driver id
-            .number(",(d+)").optional()          // hours
+            .number(",(d+)").optional() // hours
             .groupEnd("?")
             .groupEnd("?")
             .groupEnd("?")
@@ -175,10 +164,41 @@ public class StartekProtocolDecoder extends BaseProtocolDecoder {
 
         position.set(Position.KEY_ODOMETER, parser.nextLong());
 
-        position.setNetwork(new Network(CellTower.from(
-                parser.nextInt(), parser.nextInt(), parser.nextHexInt(), parser.nextHexInt(), parser.nextInt())));
+        int mcc = parser.nextInt();
+        int mnc = parser.nextInt();
+        int lac = parser.nextHexInt();
+        int cid = parser.nextHexInt();
+        int rssi = parser.nextInt();
 
-        position.set(Position.KEY_STATUS, parser.nextHexInt());
+        position.setNetwork(new Network(CellTower.from(mcc, mnc, lac, cid, rssi)));
+        position.set(Position.KEY_RSSI, Math.round(rssi * (100.0f / 31.0f)));
+        // burası değişiyor system-sta
+        int status = parser.nextHexInt();
+
+        position.set(Position.KEY_STATUS, status);
+        /*
+         * Bit0: GPRS connection status of Server1, 1=connected, 0=disconnected
+         * Bit1: GPRS connection status of Server2, 1=connected, 0=disconnected
+         * Bit2: GPS positioning status, 1=valid, 0=invalid
+         */
+        position.set("Server1Connection", BitUtil.check(status, 0));
+        position.set("Server2Connection", BitUtil.check(status, 1));
+        position.set(Position.KEY_GPS, BitUtil.check(status, 2));
+        position.set(Position.KEY_CHARGE, BitUtil.check(status, 3)); // ← bunu buraya taşıyalım
+        position.set(Position.KEY_ANTENNA, BitUtil.check(status, 4));
+        position.set("motionStatus", !BitUtil.check(status, 5));
+        position.set(Position.KEY_ARMED, BitUtil.check(status, 6));
+        /*
+         * Bit7: RFID/iButton login status, 1=log in, 0=log out
+         * Bit8: Device shedding status, 1 = shedding, 0 = not shedding
+         * Bit9: Virtual Ignition (1 = Ignition On, 0 = Ignition Off)
+         * Bit10: Driving Behavior Calibration Completed (1 =
+         * Completed, 0 = Not Completed)
+         */
+        position.set("RFIDStatus", BitUtil.check(status, 7));
+        position.set("DeviceSheddingStatus", BitUtil.check(status, 8));
+        position.set("VirtualIgnition", BitUtil.check(status, 9));
+        position.set("DrivingBehaviorCalibrationCompleted", BitUtil.check(status, 10));
 
         int input = parser.nextHexInt();
         int output = parser.nextHexInt();
@@ -187,13 +207,24 @@ public class StartekProtocolDecoder extends BaseProtocolDecoder {
         position.set(Position.KEY_INPUT, input);
         position.set(Position.KEY_OUTPUT, output);
 
-        position.set(Position.KEY_POWER, parser.nextHexInt() * 0.01);
-        position.set(Position.KEY_BATTERY, parser.nextHexInt() * 0.01);
+        double power = parser.nextHexInt() * 0.01;
+        double battery = parser.nextHexInt() * 0.01;
+
+        position.set(Position.KEY_POWER, power);
+
+        position.set(Position.KEY_BATTERY, battery);
+
+        // 3.68V = 0%, 4.08V = 100%
+        double batteryLevel = (battery - 3.68) / (4.08 - 3.68) * 100;
+        batteryLevel = Math.max(0, Math.min(100, batteryLevel)); // 0-100 arasında tut
+        position.set(Position.KEY_BATTERY_LEVEL, (int) Math.round(batteryLevel));
 
         if (parser.hasNext()) {
             String[] adc = parser.next().split("\\|");
-            for (int i = 1; i < adc.length; i++) {
-                position.set(Position.PREFIX_ADC + (i + 1), Integer.parseInt(adc[i], 16) * 0.01);
+            // adc[0]=ext-V, adc[1]=bat-V, adc[2]=ad1-V, adc[3]=ad2-V
+            // ext-V ve bat-V zaten KEY_POWER ve KEY_BATTERY olarak set edildi
+            for (int i = 2; i < adc.length; i++) {
+                position.set(Position.PREFIX_ADC + (i - 1), Integer.parseInt(adc[i], 16) * 0.01);
             }
         }
 

@@ -52,6 +52,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Singleton
 public class NotificatorFirebase extends Notificator {
@@ -90,7 +92,20 @@ public class NotificatorFirebase extends Notificator {
                 String notificationSound = user.getString("notificationSound");
                 iosSound = notificationSound + ".caf";
             }
+            // 2. Linki Regex ile Ayıklama
+            String originalBody = message.digest();
+            String extractedUrl = null;
+            String cleanBody = originalBody;
 
+            // HTTP veya HTTPS ile başlayan boşluğa kadar giden linkleri yakalar
+            Pattern pattern = Pattern.compile("https?://\\S+");
+            Matcher matcher = pattern.matcher(originalBody);
+
+            if (matcher.find()) {
+                extractedUrl = matcher.group(); // Linki bulduk
+                // İsteğe bağlı: Linki bildirim metninden temizlemek isterseniz alt satırı açın
+                cleanBody = originalBody.replace(extractedUrl, "").trim();
+            }
             List<String> registrationTokens = new ArrayList<>(
                     Arrays.asList(user.getString("notificationTokens").split("[, ]")));
 
@@ -111,11 +126,16 @@ public class NotificatorFirebase extends Notificator {
             var messageBuilder = MulticastMessage.builder()
                     .setNotification(com.google.firebase.messaging.Notification.builder()
                             .setTitle(message.subject())
-                            .setBody(message.digest())
+                            .setBody(cleanBody)
                             .build())
                     .setAndroidConfig(androidConfig.build())
                     .setApnsConfig(apnsConfig.build())
                     .addAllTokens(registrationTokens);
+
+            // 4. Eğer link bulunduysa DATA içine ekle
+            if (extractedUrl != null) {
+                messageBuilder.putData("url", extractedUrl);
+            }
 
             if (event != null) {
                 messageBuilder.putData("eventId", String.valueOf(event.getId()));

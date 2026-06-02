@@ -24,19 +24,33 @@ public class ActionResource extends BaseResource {
 
     @GET
     public Collection<Action> get(
-            @QueryParam("from") Date from, 
-            @QueryParam("to") Date to, 
-            @QueryParam("userId") Long userId) throws StorageException {
+            @QueryParam("from") Date from,
+            @QueryParam("to") Date to,
+            @QueryParam("userId") Long userId,
+            @QueryParam("actionType") String actionType,
+            @QueryParam("objectType") String objectType,
+            @QueryParam("objectId") Long objectId,
+            @QueryParam("address") String address) throws StorageException {
 
         permissionsService.checkAdmin(getUserId());
 
-        Condition condition = new Condition.Between("actiontime",from,to);
+        // Zorunlu: tarih aralığı
+        Condition condition = new Condition.Between("actiontime", from, to);
 
         if (userId != null) {
-            condition = new Condition.And(
-                condition, 
-                new Condition.Equals("userid", userId)
-            );
+            condition = new Condition.And(condition, new Condition.Equals("userid", userId));
+        }
+        if (actionType != null && !actionType.isBlank()) {
+            condition = new Condition.And(condition, new Condition.Equals("actiontype", actionType));
+        }
+        if (objectType != null && !objectType.isBlank()) {
+            condition = new Condition.And(condition, new Condition.Equals("objecttype", objectType));
+        }
+        if (objectId != null) {
+            condition = new Condition.And(condition, new Condition.Equals("objectid", objectId));
+        }
+        if (address != null && !address.isBlank()) {
+            condition = new Condition.And(condition, new Condition.Equals("address", address));
         }
 
         return storage.getObjects(Action.class, new Request(

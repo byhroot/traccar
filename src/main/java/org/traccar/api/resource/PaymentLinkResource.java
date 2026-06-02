@@ -448,7 +448,7 @@ public class PaymentLinkResource extends BaseResource {
                 if (currentUser != null) {
                     try {
                         String subject = "Ödeme linkiniz oluşturuldu";
-                        String body = "Link üzerinden ödemeyi tamamlayınız.";
+                        String body = "Link üzerinden ödemeyi tamamlayınız." + paylinkUrl;
 
                         NotificationMessage message = new NotificationMessage(subject, "", body, true);
                         // Örneğin firebase notificator
@@ -495,6 +495,51 @@ public class PaymentLinkResource extends BaseResource {
                 new Columns.All(),
                 condition,
                 new Order("createdAt")));
+    }
+
+    @GET
+    @Path("admin/all")
+    public Collection<PaymentRequest> listAll(
+            @QueryParam("from") String fromStr,
+            @QueryParam("to") String toStr) throws StorageException {
+
+        User currentUser = permissionsService.getUser(getUserId());
+        if (!currentUser.getAdministrator()) {
+            throw new ForbiddenException();
+        }
+
+        Date from = parseIsoDate(fromStr);
+        Date to = parseIsoDate(toStr);
+
+        List<Condition> conditions = new ArrayList<>();
+        if (from != null && to != null) {
+            conditions.add(new Condition.Between("createdAt", from, to));
+        } else if (from != null) {
+            conditions.add(new Condition.Compare("createdAt", ">=", from));
+        } else if (to != null) {
+            conditions.add(new Condition.Compare("createdAt", "<=", to));
+        }
+
+        Condition condition = Condition.merge(conditions); // boş liste → null döner
+
+        Request request = condition != null
+                ? new Request(new Columns.All(), condition, new Order("createdAt", true, 0))
+                : new Request(new Columns.All(), new Order("createdAt", true, 0));
+
+        return storage.getObjects(PaymentRequest.class, request);
+    }
+
+    private Date parseIsoDate(String s) {
+        if (s == null || s.isBlank())
+            return null;
+        for (String pattern : new String[] { "yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd" }) {
+            try {
+                return new java.text.SimpleDateFormat(pattern).parse(s);
+            } catch (Exception ignored) {
+            }
+        }
+        logger.warn("Geçersiz tarih parametresi: {}", s);
+        return null;
     }
 
     /**

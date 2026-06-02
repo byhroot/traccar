@@ -18,8 +18,12 @@ package org.traccar.api;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
+
+import java.util.Map;
+
 import org.traccar.api.security.ServiceAccountUser;
 import org.traccar.model.ObjectOperation;
+import org.traccar.helper.EntityDiff;
 import org.traccar.helper.LogAction;
 import org.traccar.model.BaseModel;
 import org.traccar.model.Group;
@@ -96,11 +100,13 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
     public Response update(T entity) throws Exception {
         permissionsService.checkPermission(baseClass, getUserId(), entity.getId());
 
+        // ► Önce eski halini çek (diff için)
+        T before = storage.getObject(baseClass, new Request(
+                new Columns.All(), new Condition.Equals("id", entity.getId())));
+
         boolean skipReadonly = false;
         if (entity instanceof User after) {
-            User before = storage.getObject(User.class, new Request(
-                    new Columns.All(), new Condition.Equals("id", entity.getId())));
-            permissionsService.checkUserUpdate(getUserId(), before, after);
+            permissionsService.checkUserUpdate(getUserId(), (User) before, after); // artık yukarıdaki before'u kullan
             skipReadonly = permissionsService.getUser(getUserId())
                     .compare(after, "notificationTokens", "termsAccepted");
         } else if (entity instanceof Group group) {
@@ -121,8 +127,12 @@ public abstract class BaseObjectResource<T extends BaseModel> extends BaseResour
                         new Condition.Equals("id", entity.getId())));
             }
         }
+
         cacheManager.invalidateObject(true, entity.getClass(), entity.getId(), ObjectOperation.UPDATE);
-        actionLogger.edit(request, getUserId(), entity);
+
+        // ► Diff hesapla ve logla
+        Map<String, String> diff = EntityDiff.compute(before, entity);
+        actionLogger.edit(request, getUserId(), entity, diff);
 
         return Response.ok(entity).build();
     }

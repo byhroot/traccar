@@ -72,6 +72,20 @@ public final class LogAction {
         logObjectAction(request, ACTION_EDIT, userId, object.getClass(), object.getId());
     }
 
+    // Hemen altına:
+    public void edit(HttpServletRequest request, long userId, BaseModel object, Map<String, String> changes) {
+        Action action = new Action();
+        action.setAddress(WebHelper.retrieveRemoteAddress(request));
+        action.setUserId(userId);
+        action.setActionType(ACTION_EDIT);
+        action.setObjectType(Introspector.decapitalize(object.getClass().getSimpleName()));
+        action.setObjectId(object.getId());
+        if (changes != null) {
+            changes.forEach((field, delta) -> action.set("changes." + field, delta));
+        }
+        storeAction(action);
+    }
+
     public void remove(HttpServletRequest request, long userId, Class<?> clazz, long objectId) {
         logObjectAction(request, ACTION_REMOVE, userId, clazz, objectId);
     }
@@ -89,7 +103,8 @@ public final class LogAction {
     public void login(HttpServletRequest request, long userId) {
         logLoginAction(request, ACTION_LOGIN, userId);
     }
-    public void socketlogin(String remoteAddress , long userId) {
+
+    public void socketlogin(String remoteAddress, long userId) {
         logSocketLoginAction(remoteAddress, ACTION_SOCKET_LOGIN, userId);
     }
 
@@ -118,7 +133,8 @@ public final class LogAction {
         storeAction(action);
     }
 
-    public void command(HttpServletRequest request, long userId, long groupId, long deviceId, String type, String description, String attributesJson) {
+    public void command(HttpServletRequest request, long userId, long groupId, long deviceId, String type,
+            String description, String attributesJson) {
         Action action = new Action();
         action.setAddress(WebHelper.retrieveRemoteAddress(request));
         action.setUserId(userId);
@@ -197,7 +213,8 @@ public final class LogAction {
         storeAction(action);
     }
 
-    public void other(HttpServletRequest request, long userId, String actionType , String objectType, long propertyId, String description1, String description2) {
+    public void other(HttpServletRequest request, long userId, String actionType, String objectType, long propertyId,
+            String description1, String description2) {
         Action action = new Action();
         action.setAddress(WebHelper.retrieveRemoteAddress(request));
         action.setUserId(userId);
@@ -208,6 +225,7 @@ public final class LogAction {
         action.set("desc2", description2);
         storeAction(action);
     }
+
     private void storeAction(Action action) {
         try {
             storage.addObject(action, new Request(new Columns.Exclude("id")));
